@@ -1,0 +1,35 @@
+[
+  {
+    "username": "ojassonipartner_goo",
+    "imageGenCount": 3,
+    "plan": "free",
+    "id": "user_nx4ud0gvj",
+    "passwordSalt": "cd06b39b37201bc478cf69e49d8045ee",
+    "email": "ojassoni_partner@gmail.com",
+    "maxAiMessages": 10,
+    "createdAt": "2026-05-28T06:49:24.170Z",
+    "role": "user",
+    "aiMessageCount": 10,
+    "passwordHash": "5ecb4fcfb67f65ab8d1fda8e3396ccd0d7e6352c4c8e16dd5506d1b78b6e419c22abb28658dc92ad2560a6bbfa815f135df87644da59a06a4e5621f3eb2f2617",
+    "maxImageGens": 3,
+    "avatar": "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=150&auto=format&fit=crop",
+    "name": "Ojas Creator Partner"
+  },
+  {
+    "plan": "premium",
+    "imageGenCount": 0,
+    "id": "user_test",
+    "username": "ojassoni",
+    "email": "awaneeshsoni54@gmail.com",
+    "createdAt": "2026-05-28T06:38:31.127Z",
+    "maxAiMessages": 999999,
+    "role": "admin",
+    "passwordSalt": "cedc20f19cf2c6eb5208dc65eedc21c8",
+    "passwordHash": "83a9232b2a14d5393679912f43342fa681017e5989269416296890ddf550e306262f5d33f83a6d1f685061b40b864d92fecff24d53089323bcc6a12aea498b09",
+    "aiMessageCount": 1,
+    "name": "OJAS SONI",
+    "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop",
+    "maxImageGens": 500000,
+    "failedLogins": 0
+  }
+]

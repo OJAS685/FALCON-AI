@@ -1,0 +1,114 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and SaaS session details on Falcon core",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the user"
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the operator"
+        },
+        "username": {
+          "type": "string",
+          "description": "Unique URL-friendly username"
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the operator"
+        },
+        "passwordHash": {
+          "type": "string",
+          "description": "PBKDF2 password hash"
+        },
+        "passwordSalt": {
+          "type": "string",
+          "description": "Unique cryptographic salt"
+        },
+        "avatar": {
+          "type": "string",
+          "description": "Dynamic avatar URL representation"
+        },
+        "plan": {
+          "type": "string",
+          "description": "Active subscription tier"
+        },
+        "role": {
+          "type": "string",
+          "description": "Access privilege role"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Registration ISO timestamp"
+        },
+        "aiMessageCount": {
+          "type": "number",
+          "description": "Total message handshakes executed"
+        },
+        "maxAiMessages": {
+          "type": "number",
+          "description": "Quota limit for message handshakes"
+        },
+        "imageGenCount": {
+          "type": "number",
+          "description": "Total graphic renders executed"
+        },
+        "maxImageGens": {
+          "type": "number",
+          "description": "Quota limit for graphic renders"
+        },
+        "banned": {
+          "type": "boolean",
+          "description": "Administrative block status flag"
+        }
+      },
+      "required": ["id", "name", "username", "email", "passwordHash", "passwordSalt", "avatar", "plan", "createdAt"]
+    },
+    "Chat": {
+      "title": "Chat",
+      "description": "SaaS chat thread folders stored for persistent memory",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the chat"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner identifier referencing the user who compiled this thread"
+        },
+        "title": {
+          "type": "string",
+          "description": "Human-readable label of the session"
+        },
+        "messages": {
+          "type": "array",
+          "description": "Cognitive AI conversation history node list"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Session creation ISO timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Session modification ISO timestamp"
+        }
+      },
+      "required": ["id", "userId", "title", "messages", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "Safe profiles map"
+    },
+    "chats/{chatId}": {
+      "schema": "Chat",
+      "description": "SaaS chat folders collection"
+    }
+  }
+}

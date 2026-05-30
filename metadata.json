@@ -1,0 +1,6 @@
+{
+  "name": "Falcon AI",
+  "description": "A cinematic, futuristic AI assistant platform with Apple iOS liquid glass design, real AI conversational systems, voice assistant, image editing and generation, and creative tools.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
