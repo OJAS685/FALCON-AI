@@ -84,7 +84,14 @@ export default function AuthModal({ onSuccess, onClose }: AuthModalProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      const data = await res.json();
+      
+      const responseText = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseErr) {
+        throw new Error(`Connection established, but server configuration issue returned: "${responseText.substring(0, 80)}..."`);
+      }
 
       if (!res.ok) {
         throw new Error(data.error || 'Identity access handler rejected credentials.');

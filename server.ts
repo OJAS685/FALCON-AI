@@ -153,11 +153,15 @@ function saveChats(chats: DBChat[]) {
   }
 
   // Async update Firestore - strip undefined to prevent Firestore errors
-  for (const chat of chats) {
-    const cleanChat = JSON.parse(JSON.stringify(chat));
-    setDoc(doc(db, "chats", chat.id), cleanChat).catch((err) => {
-      console.error(`Failed to write chat ${chat.id} to FireStore:`, err);
-    });
+  try {
+    for (const chat of chats) {
+      const cleanChat = JSON.parse(JSON.stringify(chat));
+      setDoc(doc(db, "chats", chat.id), cleanChat).catch((err) => {
+        console.error(`Failed to write chat ${chat.id} to FireStore:`, err);
+      });
+    }
+  } catch (err) {
+    console.error("Synchronous error during Firestore chats sync:", err);
   }
 }
 
@@ -206,11 +210,15 @@ function saveUsers(users: DBUser[]) {
   }
 
   // Async update Firestore - strip undefined to prevent Firestore errors
-  for (const user of users) {
-    const cleanUser = JSON.parse(JSON.stringify(user));
-    setDoc(doc(db, "users", user.id), cleanUser).catch((err) => {
-      console.error(`Failed to write user ${user.id} to FireStore:`, err);
-    });
+  try {
+    for (const user of users) {
+      const cleanUser = JSON.parse(JSON.stringify(user));
+      setDoc(doc(db, "users", user.id), cleanUser).catch((err) => {
+        console.error(`Failed to write user ${user.id} to FireStore:`, err);
+      });
+    }
+  } catch (err) {
+    console.error("Synchronous error during Firestore users sync:", err);
   }
 }
 
@@ -357,100 +365,109 @@ const authenticateToken = (req: AuthRequest, res: express.Response, next: expres
 // ================= AUTHENTICATION ENDPOINTS =================
 
 app.post("/api/auth/register", (req, res) => {
-  const { name, username, email, password, confirmPassword, agreeTerms, antiBotAnswer } = req.body;
-  
-  if (!name || !username || !email || !password || !confirmPassword) {
-    return res.status(400).json({ error: "All profile coordinates are required." });
-  }
+  try {
+    const { name, username, email, password, confirmPassword, agreeTerms, antiBotAnswer } = req.body;
+    
+    if (!name || !username || !email || !password || !confirmPassword) {
+      return res.status(400).json({ error: "All profile coordinates are required." });
+    }
 
-  if (password !== confirmPassword) {
-    return res.status(400).json({ error: "Password fields do not match." });
-  }
+    if (password !== confirmPassword) {
+      return res.status(400).json({ error: "Password fields do not match." });
+    }
 
-  if (!agreeTerms) {
-    return res.status(400).json({ error: "You must agree to the Terms of Service & Privacy regulations." });
-  }
+    if (!agreeTerms) {
+      return res.status(400).json({ error: "You must agree to the Terms of Service & Privacy regulations." });
+    }
 
-  // Modern anti-bot security assessment
-  if (parseInt(antiBotAnswer) !== 11) {
-    return res.status(400).json({ error: "Security core mismatch. (Are you human? 7 + 4 is strictly 11)." });
-  }
+    // Modern anti-bot security assessment
+    if (parseInt(antiBotAnswer) !== 11) {
+      return res.status(400).json({ error: "Security core mismatch. (Are you human? 7 + 4 is strictly 11)." });
+    }
 
-  // Real Email validation
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    return res.status(400).json({ error: "Please enter a valid structure email address." });
-  }
+    // Real Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: "Please enter a valid structure email address." });
+    }
 
-  // Strong Password Strength Checker
-  const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-  if (!strongPasswordRegex.test(password)) {
-    return res.status(400).json({ 
-      error: "Weak Password. Must be 8+ chars and contain uppercase, lowercase, numbers, and special chars." 
+    // Strong Password Strength Checker
+    const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!strongPasswordRegex.test(password)) {
+      return res.status(400).json({ 
+        error: "Weak Password. Must be 8+ chars and contain uppercase, lowercase, numbers, and special chars." 
+      });
+    }
+
+    // Normalized Duplicates Checks
+    const cleanUsername = username.toLowerCase().replace(/[^a-z0-9_-]/g, "").trim();
+    if (cleanUsername.length < 3) {
+      return res.status(400).json({ error: "Username must be at least 3 character tags long." });
+    }
+
+    const usernameExists = usersDB.some(u => u.username === cleanUsername);
+    if (usernameExists) {
+      return res.status(400).json({ error: "This custom username has already been registered." });
+    }
+
+    const emailExists = usersDB.some(u => u.email.toLowerCase() === email.toLowerCase());
+    if (emailExists) {
+      return res.status(400).json({ error: "There is already an active account connected to this email handle." });
+    }
+
+    // Salt and secure with PBKDF2
+    const salt = generateSalt();
+    const passwordSalt = salt;
+    const passwordHash = hashPassword(password, salt);
+
+    const isFirstAdmin = email.toLowerCase() === "awaneeshsoni54@gmail.com";
+
+    const newUser: DBUser = {
+      id: "user_" + Math.random().toString(36).substr(2, 9),
+      name: name.trim(),
+      username: cleanUsername,
+      email: email.toLowerCase().trim(),
+      passwordSalt,
+      passwordHash,
+      avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanUsername)}`,
+      plan: isFirstAdmin ? "premium" : "free",
+      createdAt: new Date().toISOString(),
+      role: isFirstAdmin ? "admin" : "user",
+      aiMessageCount: 0,
+      imageGenCount: 0,
+      maxAiMessages: isFirstAdmin ? 999999 : 50,
+      maxImageGens: isFirstAdmin ? 50000 : 3
+    };
+
+    usersDB.push(newUser);
+    saveUsers(usersDB);
+
+    // Generate simulated dispatch code
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    newUser.otpCode = otpCode;
+    newUser.otpExpires = otpExpires;
+    saveUsers(usersDB);
+
+    const { passwordSalt: _, passwordHash: __, ...userSafe } = newUser;
+    const token = generateJWT({ userId: newUser.id, email: newUser.email, role: newUser.role });
+
+    return res.json({
+      success: true,
+      message: "Welcome! Your real account has been synthesized successfully on Falcon Core.",
+      user: userSafe,
+      token,
+      otpRequired: true,
+      otpCode // Provided in registration response so they can enter it easily in our sandbox email OTP setup
+    });
+  } catch (err: any) {
+    console.error("❌ Exception during user registration:", err);
+    return res.status(500).json({
+      error: "Authentication server failure. Please check setup.",
+      message: err.message,
+      stack: err.stack
     });
   }
-
-  // Normalized Duplicates Checks
-  const cleanUsername = username.toLowerCase().replace(/[^a-z0-9_-]/g, "").trim();
-  if (cleanUsername.length < 3) {
-    return res.status(400).json({ error: "Username must be at least 3 character tags long." });
-  }
-
-  const usernameExists = usersDB.some(u => u.username === cleanUsername);
-  if (usernameExists) {
-    return res.status(400).json({ error: "This custom username has already been registered." });
-  }
-
-  const emailExists = usersDB.some(u => u.email.toLowerCase() === email.toLowerCase());
-  if (emailExists) {
-    return res.status(400).json({ error: "There is already an active account connected to this email handle." });
-  }
-
-  // Salt and secure with PBKDF2
-  const salt = generateSalt();
-  const passwordSalt = salt;
-  const passwordHash = hashPassword(password, salt);
-
-  const isFirstAdmin = email.toLowerCase() === "awaneeshsoni54@gmail.com";
-
-  const newUser: DBUser = {
-    id: "user_" + Math.random().toString(36).substr(2, 9),
-    name: name.trim(),
-    username: cleanUsername,
-    email: email.toLowerCase().trim(),
-    passwordSalt,
-    passwordHash,
-    avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanUsername)}`,
-    plan: isFirstAdmin ? "premium" : "free",
-    createdAt: new Date().toISOString(),
-    role: isFirstAdmin ? "admin" : "user",
-    aiMessageCount: 0,
-    imageGenCount: 0,
-    maxAiMessages: isFirstAdmin ? 999999 : 50,
-    maxImageGens: isFirstAdmin ? 50000 : 3
-  };
-
-  usersDB.push(newUser);
-  saveUsers(usersDB);
-
-  // Generate simulated dispatch code
-  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-  const otpExpires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-  newUser.otpCode = otpCode;
-  newUser.otpExpires = otpExpires;
-  saveUsers(usersDB);
-
-  const { passwordSalt: _, passwordHash: __, ...userSafe } = newUser;
-  const token = generateJWT({ userId: newUser.id, email: newUser.email, role: newUser.role });
-
-  return res.json({
-    success: true,
-    message: "Welcome! Your real account has been synthesized successfully on Falcon Core.",
-    user: userSafe,
-    token,
-    otpRequired: true,
-    otpCode // Provided in registration response so they can enter it easily in our sandbox email OTP setup
-  });
 });
 
 app.post("/api/auth/login", (req, res) => {
