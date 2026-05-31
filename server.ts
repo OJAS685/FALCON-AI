@@ -222,9 +222,9 @@ function saveUsers(users: DBUser[]) {
   }
 }
 
-// Active database caches (will be populated from Firestore on boot)
-let usersDB: DBUser[] = [];
-let chatsDB: DBChat[] = [];
+// Active database caches (bootstrapped from local fallback synchronously then synced with Cloud in background)
+let usersDB: DBUser[] = loadUsers();
+let chatsDB: DBChat[] = loadChats();
 
 async function initFirebaseAndLoadData() {
   console.log("🔥 Connecting and syncing with Google Cloud Firestore database...");
@@ -235,30 +235,39 @@ async function initFirebaseAndLoadData() {
     // 2. Fetch users
     const usersSnapshot = await getDocs(collection(db, "users"));
     if (usersSnapshot.empty) {
-      console.log("No user database entries detected in Firestore. Bootstrapping admin master node...");
-      const seeded = loadUsers();
-      for (const u of seeded) {
+      console.log("No user database entries detected in Firestore. Seeding admin master node & local accounts...");
+      // Seed all existing local accounts to Firestore
+      for (const u of usersDB) {
         const cleanU = JSON.parse(JSON.stringify(u));
         await setDoc(doc(db, "users", u.id), cleanU);
-        usersDB.push(u);
       }
     } else {
+      // Merge Cloud users with memory cache securely
+      const cloudUsers: DBUser[] = [];
       usersSnapshot.forEach((doc) => {
-        usersDB.push(doc.data() as DBUser);
+        cloudUsers.push(doc.data() as DBUser);
       });
-      console.log(`Successfully synced ${usersDB.length} active operator registry logs from FireStore.`);
+      // Merge: prefer cloud users but keep memory uniques
+      const cloudUserIds = new Set(cloudUsers.map(u => u.id));
+      const uniqueLocalUsers = usersDB.filter(u => !cloudUserIds.has(u.id));
+      usersDB = [...cloudUsers, ...uniqueLocalUsers];
+      console.log(`Successfully synced ${usersDB.length} active operator registry logs from FireStore (local + cloud unified).`);
     }
 
     // 3. Fetch chats
     const chatsSnapshot = await getDocs(collection(db, "chats"));
-    chatsSnapshot.forEach((doc) => {
-      chatsDB.push(doc.data() as DBChat);
-    });
-    console.log(`Successfully synced ${chatsDB.length} persistent conversation nodes from FireStore.`);
-  } catch (err) {
-    console.error("❌ Failed to fetch/initialize Firestore schemas. Operating via fallback local storage.", err);
-    usersDB.push(...loadUsers());
-    chatsDB.push(...loadChats());
+    if (!chatsSnapshot.empty) {
+      const cloudChats: DBChat[] = [];
+      chatsSnapshot.forEach((doc) => {
+        cloudChats.push(doc.data() as DBChat);
+      });
+      const cloudChatIds = new Set(cloudChats.map(c => c.id));
+      const uniqueLocalChats = chatsDB.filter(c => !cloudChatIds.has(c.id));
+      chatsDB = [...cloudChats, ...uniqueLocalChats];
+      console.log(`Successfully synced ${chatsDB.length} persistent conversation nodes from FireStore (local + cloud unified).`);
+    }
+  } catch (err: any) {
+    console.error("❌ Failed to fetch/initialize Firestore schemas. Continuing with active local storage cache.", err.message || err);
   }
 }
 
@@ -2190,9 +2199,15 @@ Redistribute pixels, preserve background perspective, scale vectors symmetricall
 // ================= VITE ASSET CONTROLLERS =================
 
 async function bootServer() {
-  // Initialize Firestore connections and synchronize local registry & chats database with Cloud records
-  await initFirebaseAndLoadData();
-  migrateDB();
+  // Start Firestore connection & sync asynchronously in the background so it never blocks the fast server boot
+  initFirebaseAndLoadData()
+    .then(() => {
+      migrateDB();
+    })
+    .catch((err) => {
+      console.error("❌ Background Firestore loading failed, local fallback continues:", err);
+      migrateDB();
+    });
 
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
