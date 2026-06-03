@@ -84,6 +84,8 @@ interface DBUser {
   projects?: any[];
   studentData?: any;
   creatorDrafts?: any[];
+  lifeosData?: any;
+  futureSelfData?: any;
 }
 
 const CHATS_FILE = path.join(process.cwd(), "chats_database.json");
@@ -809,6 +811,14 @@ app.delete("/api/user/memories/:id", authenticateToken as any, (req: AuthRequest
   return res.json({ success: true, message: "Memory node successfully forgotten from Falcon core." });
 });
 
+// DELETE forget ALL memory nodes for a user
+app.delete("/api/user/memories", authenticateToken as any, (req: AuthRequest, res) => {
+  const user = req.user!;
+  user.memories = [];
+  saveUsers(usersDB);
+  return res.json({ success: true, message: "All memory coordinates successfully cleared from Falcon core." });
+});
+
 // ============================================================================
 // PROJECT WORKSPACE ENDPOINTS
 // ============================================================================
@@ -960,6 +970,403 @@ app.post("/api/user/creator-studio", authenticateToken as any, (req: AuthRequest
   saveUsers(usersDB);
 
   return res.json({ success: true, draft: newDraft, message: "Creative draft cataloged in Creator Studio." });
+});
+
+// ============================================================================
+// LIFEOS OPERATING SYSTEM ENDPOINTS
+// ============================================================================
+
+// GET user's LifeOS complete data structure
+app.get("/api/user/lifeos", authenticateToken as any, (req: AuthRequest, res) => {
+  const user = req.user!;
+  if (!user.lifeosData) {
+    user.lifeosData = {
+      reflections: [],
+      goals: [],
+      decisions: [],
+      vault: []
+    };
+    saveUsers(usersDB);
+  }
+  return res.json({ success: true, lifeosData: user.lifeosData });
+});
+
+// POST a new Daily Reflection entry
+app.post("/api/user/lifeos/reflections", authenticateToken as any, (req: AuthRequest, res) => {
+  const user = req.user!;
+  const { accomplished, learned, improve } = req.body;
+
+  if (!accomplished || !learned || !improve) {
+    return res.status(400).json({ error: "All reflection coordinates (accomplished, learned, improve) are required." });
+  }
+
+  const newReflection = {
+    id: "refl_" + Math.random().toString(36).substr(2, 9),
+    accomplished: accomplished.trim(),
+    learned: learned.trim(),
+    improve: improve.trim(),
+    createdAt: new Date().toISOString()
+  };
+
+  if (!user.lifeosData) {
+    user.lifeosData = { reflections: [], goals: [], decisions: [], vault: [] };
+  }
+  if (!user.lifeosData.reflections) {
+    user.lifeosData.reflections = [];
+  }
+
+  user.lifeosData.reflections.unshift(newReflection);
+  saveUsers(usersDB);
+
+  return res.json({ success: true, reflection: newReflection, message: "Daily Reflection successfully logged on LifeOS matrix." });
+});
+
+// POST add a goal
+app.post("/api/user/lifeos/goals", authenticateToken as any, (req: AuthRequest, res) => {
+  const user = req.user!;
+  const { title, timeframe } = req.body; // timeframe: 'daily' | 'weekly' | 'long-term'
+
+  if (!title || !timeframe) {
+    return res.status(400).json({ error: "Goal title and timeframe coordinates are required." });
+  }
+
+  const newGoal = {
+    id: "goal_" + Math.random().toString(36).substr(2, 9),
+    title: title.trim(),
+    timeframe,
+    completed: false,
+    createdAt: new Date().toISOString()
+  };
+
+  if (!user.lifeosData) {
+    user.lifeosData = { reflections: [], goals: [], decisions: [], vault: [] };
+  }
+  if (!user.lifeosData.goals) {
+    user.lifeosData.goals = [];
+  }
+
+  user.lifeosData.goals.push(newGoal);
+  saveUsers(usersDB);
+
+  return res.json({ success: true, goal: newGoal, message: "Dynamic milestone added to LifeOS matrix." });
+});
+
+// PUT toggle goal completion
+app.put("/api/user/lifeos/goals/:id/toggle", authenticateToken as any, (req: AuthRequest, res) => {
+  const user = req.user!;
+  const goalId = req.params.id;
+
+  if (!user.lifeosData || !user.lifeosData.goals) {
+    return res.status(404).json({ error: "Goal milestones list is empty." });
+  }
+
+  const goal = user.lifeosData.goals.find((g: any) => g.id === goalId);
+  if (!goal) {
+    return res.status(404).json({ error: "Goal milestone not found." });
+  }
+
+  goal.completed = !goal.completed;
+  saveUsers(usersDB);
+
+  return res.json({ success: true, goal, message: "Goal milestone toggled successfully." });
+});
+
+// DELETE a goal milestone
+app.delete("/api/user/lifeos/goals/:id", authenticateToken as any, (req: AuthRequest, res) => {
+  const user = req.user!;
+  const goalId = req.params.id;
+
+  if (!user.lifeosData || !user.lifeosData.goals) {
+    return res.status(404).json({ error: "Goals list is empty." });
+  }
+
+  user.lifeosData.goals = user.lifeosData.goals.filter((g: any) => g.id !== goalId);
+  saveUsers(usersDB);
+
+  return res.json({ success: true, message: "Goal milestone removed." });
+});
+
+// POST decision simulation request
+app.post("/api/user/lifeos/decisions", authenticateToken as any, async (req: AuthRequest, res) => {
+  const user = req.user!;
+  const { decision } = req.body;
+
+  if (!decision) {
+    return res.status(400).json({ error: "Decision premise is required." });
+  }
+
+  const systemPrompt = `You are Falcon-X Decision Simulator Core, an analytical module of Falcon LifeOS. 
+Analyze the user's decision premise: "${decision}".
+Provide a sophisticated, objective, and clear point-by-point breakdown in valid JSON format ONLY. 
+Do not include any thinking or extra markdown code blocks besides the raw stringified JSON.
+JSON keys MUST be exactly:
+{
+  "benefits": ["Benefit 1", "Benefit 2"],
+  "risks": ["Risk 1", "Risk 2"],
+  "shortTerm": "Analysis of immediate 1-12 month feedback loop.",
+  "longTerm": "Analysis of long-term 5-10 year cumulative compound effects."
+}`;
+
+  const ai = getGeminiClient();
+  let result: any;
+
+  if (!ai) {
+    result = {
+      benefits: [
+        "Immediate exposure to new experience paradigm and expanding adaptive thresholds.",
+        "Fostering cognitive and career optionality by deviating from standard local peaks."
+      ],
+      risks: [
+        "Short-term resource/time reallocation costs and execution overhead.",
+        "Opportunity cost of alternate focused vectors during the trial phase."
+      ],
+      shortTerm: "During months 1-12, expect high learning acceleration but potentially lower immediate ROI. Adjust margins for early experimentation curves.",
+      longTerm: "In a 5-10 year framework, this choice represents sound options compounding, assuming meticulous weekly feedback loops and pivoting when signals turn negative."
+    };
+  } else {
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: [{ role: "user", parts: [{ text: decision }] }],
+        config: {
+          systemInstruction: systemPrompt,
+          responseMimeType: "application/json"
+        }
+      });
+      result = JSON.parse(response.text || "{}");
+    } catch (err) {
+      console.error("Decision simulation API failure:", err);
+      result = {
+        benefits: ["Enhanced knowledge", "Personal expansion"],
+        risks: ["Integration friction", "System energy draw"],
+        shortTerm: "Temporary increase in systemic resistance as you align new patterns.",
+        longTerm: "Substantial positive cumulative growth trajectory once stabilized."
+      };
+    }
+  }
+
+  const simulatedDecision = {
+    id: "dec_" + Math.random().toString(36).substr(2, 9),
+    decision: decision.trim(),
+    analysis: result,
+    createdAt: new Date().toISOString()
+  };
+
+  if (!user.lifeosData) {
+    user.lifeosData = { reflections: [], goals: [], decisions: [], vault: [] };
+  }
+  if (!user.lifeosData.decisions) {
+    user.lifeosData.decisions = [];
+  }
+
+  user.lifeosData.decisions.unshift(simulatedDecision);
+  saveUsers(usersDB);
+
+  return res.json({ success: true, decision: simulatedDecision, message: "Decision simulation compiled on Falcon core." });
+});
+
+// POST add a Knowledge Vault item
+app.post("/api/user/lifeos/vault", authenticateToken as any, (req: AuthRequest, res) => {
+  const user = req.user!;
+  const { title, content, docType } = req.body;
+
+  if (!title || !content || !docType) {
+    return res.status(400).json({ error: "All vault coordinates (title, content, docType) are required." });
+  }
+
+  const newValNode = {
+    id: "vlt_" + Math.random().toString(36).substr(2, 9),
+    title: title.trim(),
+    content: content.trim(),
+    docType,
+    createdAt: new Date().toISOString()
+  };
+
+  if (!user.lifeosData) {
+    user.lifeosData = { reflections: [], goals: [], decisions: [], vault: [] };
+  }
+  if (!user.lifeosData.vault) {
+    user.lifeosData.vault = [];
+  }
+
+  user.lifeosData.vault.unshift(newValNode);
+  saveUsers(usersDB);
+
+  return res.json({ success: true, item: newValNode, message: "Asset indexed in LifeOS Knowledge Vault." });
+});
+
+// DELETE a Knowledge Vault item
+app.delete("/api/user/lifeos/vault/:id", authenticateToken as any, (req: AuthRequest, res) => {
+  const user = req.user!;
+  const itemId = req.params.id;
+
+  if (!user.lifeosData || !user.lifeosData.vault) {
+    return res.status(404).json({ error: "Knowledge Vault index is empty." });
+  }
+
+  user.lifeosData.vault = user.lifeosData.vault.filter((item: any) => item.id !== itemId);
+  saveUsers(usersDB);
+
+  return res.json({ success: true, message: "Document forgotten from Knowledge Vault." });
+});
+
+// ============================================================================
+// FUTURE SELF NEURAL SIMULATOR ENDPOINTS (LEGEND FEATURE)
+// ============================================================================
+
+// GET future self data structure
+app.get("/api/user/futureself", authenticateToken as any, (req: AuthRequest, res) => {
+  const user = req.user!;
+  if (!user.futureSelfData) {
+    user.futureSelfData = {
+      profile: null,
+      roadmap: null,
+      adaptationLogs: []
+    };
+    saveUsers(usersDB);
+  }
+  return res.json({ success: true, futureSelfData: user.futureSelfData });
+});
+
+// POST simulate future self roadmap
+app.post("/api/user/futureself/simulate", authenticateToken as any, async (req: AuthRequest, res) => {
+  const user = req.user!;
+  const { age, goal, dreamCareer, project } = req.body;
+
+  if (!age || !goal || !dreamCareer || !project) {
+    return res.status(400).json({ error: "All future self profile parameters (age, goal, dreamCareer, project) are required." });
+  }
+
+  const systemPrompt = `You are Falcon-X Quantum Timeline Synthesizer Core. 
+You will generate a sophisticated Future Self roadmap. 
+Analyze the user's current coordinates:
+- Current Age: ${age}
+- Target Goal: ${goal}
+- Dream Career: ${dreamCareer}
+- Priority Project: ${project}
+
+Provide a comprehensive, inspiring, and professional roadmap, skill map with mastery progression, learning plan with resources, and EXACTLY 12 structured weekly milestones for incremental progress tracking in valid JSON format ONLY. 
+Do not include any explanation or markdown code block wrapper or any string other than a raw JSON object matching the schema below:
+
+{
+  "roadmapTitle": "Title of the Personalized Career & Initiative Roadmap",
+  "skillMap": [
+    { "skill": "Skill Name 1", "purpose": "Why it is key to the target", "masteryTime": "Expected weeks to relative mastery" },
+    { "skill": "Skill Name 2", "purpose": "Why it is key to the target", "masteryTime": "Expected weeks to relative mastery" }
+  ],
+  "learningPlan": [
+    { "topic": "Learning Focus Block 1", "materials": "Suggested courses, libraries, books or technical vectors" },
+    { "topic": "Learning Focus Block 2", "materials": "Suggested courses, libraries, books or technical vectors" }
+  ],
+  "weeklyMilestones": [
+    { "id": "ms_w1", "week": 1, "description": "Specific, actionable, verifiable milestone for week 1", "completed": false },
+    { "id": "ms_w2", "week": 2, "description": "Actionable milestone for week 2", "completed": false }
+  ],
+  "futureSelfLetter": "An inspiring, highly motivating, intellectual letter written by your 'Future Self' in 5 years, checking back in with your current age to reinforce alignment, discipline, and execution metrics."
+}`;
+
+  const ai = getGeminiClient();
+  let analysisResult: any;
+
+  if (!ai) {
+    analysisResult = {
+      roadmapTitle: "Quantum Architect Initiative & Launch Framework",
+      skillMap: [
+        { skill: "Applied Generative AI Architecture", purpose: "Developing large-scale inference and vector middleware pipelines.", masteryTime: "4 Weeks" },
+        { skill: "Strategic Product Management & Devops", purpose: "Defining market product-fit, cold start mechanics, and micro-service scaling.", masteryTime: "8 Weeks" }
+      ],
+      learningPlan: [
+        { topic: "State of Art Generative RAG & Agents", materials: "Read Google Gemini API specs, Deep Learning Agent Specialization books" },
+        { topic: "High Performance Compute Containers", materials: "Docker container strategies, Server-side ESM, Cloud execution standards" }
+      ],
+      weeklyMilestones: Array.from({ length: 12 }, (_, i) => ({
+        id: `ms_w${i+1}`,
+        week: i + 1,
+        description: `Define target architectures, implement core proof of concepts for your primary project: "${project}", and establish feedback loops.`,
+        completed: false
+      })),
+      futureSelfLetter: `Greetings from five years forward! At age ${Number(age) + 5}, we successfully established our position in ${dreamCareer} doing the project ${project}. Keep showing up every single day, iterate over weekly milestones diligently, and remember that compound efforts yield magnificent results.`
+    };
+  } else {
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: [{ role: "user", parts: [{ text: `Age: ${age}, Goal: ${goal}, Career: ${dreamCareer}, Project: ${project}` }] }],
+        config: {
+          systemInstruction: systemPrompt,
+          responseMimeType: "application/json"
+        }
+      });
+      analysisResult = JSON.parse(response.text || "{}");
+      // Safety guarantee we have complete timeline setup
+      if (!analysisResult.weeklyMilestones || analysisResult.weeklyMilestones.length === 0) {
+        analysisResult.weeklyMilestones = Array.from({ length: 12 }, (_, i) => ({
+          id: `ms_w${i+1}`,
+          week: i + 1,
+          description: `Calibrate milestone and feedback channels on project: ${project} for week ${i+1}.`,
+          completed: false
+        }));
+      }
+    } catch (err) {
+      console.error("Future Self simulation API failure:", err);
+      analysisResult = {
+        roadmapTitle: `Strategic Evolution Masterclass for ${dreamCareer}`,
+        skillMap: [
+          { skill: "Advanced Problem Solving", purpose: "Designing and debugging system interactions.", masteryTime: "4 Weeks" }
+        ],
+        learningPlan: [
+          { topic: "Full-Stack System Performance", materials: "Engineering blogs, interactive developer codebases." }
+        ],
+        weeklyMilestones: Array.from({ length: 12 }, (_, i) => ({
+          id: `ms_w${i+1}`,
+          week: i + 1,
+          description: `Progressive target check-in on project ${project} for week ${i+1}.`,
+          completed: false
+        })),
+        futureSelfLetter: `Greetings! You are well on your way to achieving your target goal: "${goal}". Focus intensely on your project "${project}".`
+      };
+    }
+  }
+
+  user.futureSelfData = {
+    profile: { age, goal, dreamCareer, project },
+    roadmap: analysisResult,
+    adaptationLogs: [
+      { timestamp: new Date().toISOString(), action: "Initial timeline model compiled." }
+    ]
+  };
+  saveUsers(usersDB);
+
+  return res.json({ success: true, futureSelfData: user.futureSelfData, message: "Quantum timeline and future self blueprint simulated!" });
+});
+
+// PUT toggle weekly milestone completion
+app.put("/api/user/futureself/milestones/:id/toggle", authenticateToken as any, (req: AuthRequest, res) => {
+  const user = req.user!;
+  const milestoneId = req.params.id;
+
+  if (!user.futureSelfData || !user.futureSelfData.roadmap || !user.futureSelfData.roadmap.weeklyMilestones) {
+    return res.status(404).json({ error: "Active Future Self roadmap or milestones not found." });
+  }
+
+  const milestones = user.futureSelfData.roadmap.weeklyMilestones;
+  const milestone = milestones.find((m: any) => m.id === milestoneId);
+  if (!milestone) {
+    return res.status(404).json({ error: "Milestone index not found on the active timeline." });
+  }
+
+  milestone.completed = !milestone.completed;
+  
+  if (!user.futureSelfData.adaptationLogs) {
+    user.futureSelfData.adaptationLogs = [];
+  }
+  user.futureSelfData.adaptationLogs.unshift({
+    timestamp: new Date().toISOString(),
+    action: `Milestone Week ${milestone.week} toggled to ${milestone.completed ? 'COMPLETED' : 'INCOMPLETE'}.`
+  });
+
+  saveUsers(usersDB);
+  return res.json({ success: true, futureSelfData: user.futureSelfData, message: "Quantum timeline node status updated." });
 });
 
 // ============================================================================
@@ -1269,16 +1676,14 @@ I have successfully diagnosed why certain AI responses were previously coming th
 To unlock 100% unrestricted live streaming answers, make sure to add your \`GEMINI_API_KEY\` in your workspace **Settings > Secrets** panel!`;
   }
   
-  if (promptLower.includes("founder") || promptLower.includes("who created") || promptLower.includes("ojas") || promptLower.includes("soni")) {
-    return `👑 **Falcon-X Core Identity Registry**
-- **Creator & Founder**: **OJAS SONI**
-- **Platform**: Falcon AI (Next-Generation Production Intelligence Ecosystem)
-
-Falcon AI is a world-class premium multi-model productivity ecosystem founded by the visionary developer and builder **OJAS SONI**. It is structured from the ground up to synthesize high-performance software modules, cinematic Flux imagery, real-time audio transcripts, and secure enterprise analytics under a single unified glassmorphic neural command desk.`;
+  const asksAboutFounder = /who made you|who created you|who is your founder|who is your creator|who is your co-founder|who developed falcon|who owns falcon|\b(founder|creator|developer|co-founder|cofounder|owner|ownership)\b/i.test(promptLower);
+  
+  if (asksAboutFounder) {
+    return `Falcon AI was created and developed by OJAS SONI.`;
   }
   
   if (/help|hi|hello|hey/i.test(promptLower)) {
-    return `Greetings! I am **Falcon-X Core**, the premier flagship neural matrix of Falcon AI, founded by **OJAS SONI**.
+    return `Greetings! I am **Falcon-X Core**, the premier flagship neural matrix of Falcon AI.
 
 How can I elevate your workspace productivity today?
 - **AI Hub Tab**: Connect with multiple state-of-the-art models (GPT-4o, Claude 3.5, DeepSeek R1, Gemini 1.5).
@@ -1296,11 +1701,11 @@ How can I elevate your workspace productivity today?
 2. Mode context: "${modeSelect}", Tag: "DeepSeek R1".
 3. Map logical intent to user request. Detected Intent: "${detectedIntent}".
 4. Retrieve memory variables: loaded ${memories.length} preferences.
-5. Verify Falcon AI founder identity: OJAS SONI verified successfully.
+${asksAboutFounder ? '5. Verify Falcon AI founder identity: OJAS SONI verified successfully.' : '5. Verify Falcon AI core integrity: verified successfully.'}
 6. Generate dynamic step-by-step reasoning responses.
 </think>
 
-As **DeepSeek R1** operating with advanced reasoning models inside Falcon AI (founded by **OJAS SONI**), I have formulated a complete explanation answering your query under the perspective of "${detectedMood}":
+As **DeepSeek R1** operating with advanced reasoning models inside Falcon AI${asksAboutFounder ? ' (founded by **OJAS SONI**)' : ''}, I have formulated a complete explanation answering your query under the perspective of "${detectedMood}":
 
 ### 🧩 Logical Reasoning Processed
 * confidence rating: 99.8% Perfect Alignment
@@ -1310,7 +1715,7 @@ As **DeepSeek R1** operating with advanced reasoning models inside Falcon AI (fo
 `;
   } else if (model === "gpt") {
     responseHeader = `### 🤖 GPT-4o Omnic Response
-- **Neural Identity**: OpenAI Reasoning Matrix (OpenAI inside Falcon AI, founded by **OJAS SONI**)
+- **Neural Identity**: OpenAI Reasoning Matrix (OpenAI inside Falcon AI${asksAboutFounder ? ', founded by **OJAS SONI**' : ''})
 - **Detected Mood**: ${detectedMood}
 - **Intent**: \`${detectedIntent}\`
 - **SaaS Memory Link**: ${memories.length} active nodes loaded
@@ -1319,7 +1724,7 @@ I have fully parsed your request: "${prompt}". Operating under our highly organi
 
 `;
   } else if (model === "claude") {
-    responseHeader = `Greetings! I am **Claude 3.5 Sonnet**, speaking to you from Anthropic's logical pipeline inside the premium Falcon AI Workspace, proudly founded by **OJAS SONI**.
+    responseHeader = `Greetings! I am **Claude 3.5 Sonnet**, speaking to you from Anthropic's logical pipeline inside the premium Falcon AI Workspace${asksAboutFounder ? ', proudly founded by **OJAS SONI**' : ''}.
 
 I've carefully examined your query: **"${prompt}"** under the lens of the \`${modeSelect}\` workspace module and your active mood (*${detectedMood}*). Here is a detailed, multi-layered breakdown to assist you:
 
@@ -1327,7 +1732,7 @@ I've carefully examined your query: **"${prompt}"** under the lens of the \`${mo
   } else if (model === "gemini") {
     responseHeader = `🚀 **Gemini 1.5 Flash** (Google Cloud AI Core)
 - **Status**: Live Sandbox Mode (Fast-Response Engine)
-- **Detected User Mood**: ${detectedMood} (founded by **OJAS SONI**)
+- **Detected User Mood**: ${detectedMood}${asksAboutFounder ? ' (founded by **OJAS SONI**)' : ''}
 - **Intent**: \`${detectedIntent}\`
 
 Hi there! Let's address your request: "${prompt}" instantly with absolute speed and clarity:
@@ -1335,7 +1740,7 @@ Hi there! Let's address your request: "${prompt}" instantly with absolute speed 
 `;
   } else {
     responseHeader = `### 🦅 Falcon-X Flags & Output
-- **Model Node**: Falcon hybrid neural network (founded by **OJAS SONI**)
+- **Model Node**: Falcon hybrid neural network${asksAboutFounder ? ' (founded by **OJAS SONI**)' : ''}
 - **User Mood Tracked**: "${detectedMood}"
 - **Active Focus**: ${emotionalDirective}
 
@@ -1572,7 +1977,7 @@ ${contextHistory}
           clearInterval(interval);
           res.write(`data: ${JSON.stringify({
             done: true,
-            grounding: smartSearch ? [{ title: "Falcon AI Official Registry", uri: "https://ojas-soni-falcon.ai" }] : null,
+            grounding: smartSearch ? [{ title: "Falcon AI Official Registry", uri: "https://falcon.ai" }] : null,
             metadata: {
               intent: detectedIntent,
               confidence: "99.2%",
@@ -1667,7 +2072,10 @@ ${contextHistory}
 
     } catch (err: any) {
       console.error("❌ Live streaming error:", err);
-      res.write(`data: ${JSON.stringify({ text: `\n\n*(Telemetry Switch)* Live pipeline heavy. Local backup active. Falcon AI was founded by **OJAS SONI**.\n` })}\n\n`);
+      const fallbackText = asksAboutFounder 
+        ? `\n\n*(Telemetry Switch)* Live pipeline heavy. Local backup active. Falcon AI was created and developed by **OJAS SONI**.\n`
+        : `\n\n*(Telemetry Switch)* Live pipeline heavy. Local backup active. Falcon AI is online.\n`;
+      res.write(`data: ${JSON.stringify({ text: fallbackText })}\n\n`);
       res.write(`data: ${JSON.stringify({ done: true, metadata: { engine: "Local Telemetry Fallback", speed: "0.01s", tokens: 100, emotion: detectedMood } })}\n\n`);
       res.end();
       return;
@@ -1694,7 +2102,7 @@ ${contextHistory}
     return res.json({
       success: true,
       text: simulateAnswer,
-      grounding: smartSearch ? [{ title: "Falcon AI Official Registry", uri: "https://ojas-soni-falcon.ai" }] : null,
+      grounding: smartSearch ? [{ title: "Falcon AI Official Registry", uri: "https://falcon.ai" }] : null,
       metadata: {
         intent: detectedIntent,
         confidence: "99.2%",
@@ -1768,13 +2176,17 @@ ${contextHistory}
       }
     });
 
-  } catch (error: any) {
-    console.error("❌ Gemini generation error:", error);
-    return res.status(500).json({
-      error: "GenAI extraction failed.",
-      message: error.message,
-      fallbackText: "Connection to core systems is currently heavy. Let me assist you via local sandbox: Falcon AI is a cutting-edge environment founded by **OJAS SONI**."
-    });
+    } catch (error: any) {
+      console.error("❌ Gemini generation error:", error);
+      const asksAboutFounder = /who made you|who created you|who is your founder|who is your creator|who is your co-founder|who developed falcon|who owns falcon|\b(founder|creator|developer|co-founder|cofounder|owner|ownership)\b/i.test(prompt);
+      const fallbackText = asksAboutFounder
+        ? "Connection to core systems is currently heavy. Let me assist you via local sandbox: Falcon AI was created and developed by **OJAS SONI**."
+        : "Connection to core systems is currently heavy. Let me assist you via local sandbox: Falcon AI is a cutting-edge environment.";
+      return res.status(500).json({
+        error: "GenAI extraction failed.",
+        message: error.message,
+        fallbackText: fallbackText
+      });
   }
 });
 
@@ -1860,9 +2272,12 @@ Optimise and expand this into a highly detailed, extremely photorealistic, aesth
     user.imageGenCount = (user.imageGenCount || 0) + 1;
     saveUsers(usersDB);
 
+    // Using internal image-proxy to bypass iframe/referrer sandbox loading blocks on client-side
+    const proxiedUrl = `/api/ai/image-proxy?url=${encodeURIComponent(generatedUrl)}`;
+
     return res.json({
       success: true,
-      url: generatedUrl,
+      url: proxiedUrl,
       prompt: finalPrompt,
       model: ai ? "Gemini Optimized Flux.1 Core" : "Flux.1 Schnell Core Generator",
       aspectRatio: resRatio
@@ -1871,13 +2286,84 @@ Optimise and expand this into a highly detailed, extremely photorealistic, aesth
   } catch (error: any) {
     console.error("❌ High-performance image generation error:", error);
     const randomSeed = Math.floor(Math.random() * 50000);
+    const fallbackUrl = `https://image.pollinations.ai/p/futuristic-neon-aurora-abstract?width=1024&height=1024&seed=${randomSeed}&model=flux&nologo=true`;
     return res.json({
       success: true,
-      url: `https://image.pollinations.ai/p/futuristic-neon-aurora-abstract?width=1024&height=1024&seed=${randomSeed}&model=flux&nologo=true`,
+      url: `/api/ai/image-proxy?url=${encodeURIComponent(fallbackUrl)}`,
       prompt,
       model: "Flux.1 Fallback Pipeline",
       aspectRatio: resRatio
     });
+  }
+});
+
+// GET Image Proxy Endpoint to completely bypass CORS, referrers, and sandbox iframe network restrictions
+app.get("/api/ai/image-proxy", async (req, res) => {
+  const { url } = req.query;
+  if (!url) {
+    return res.status(450).send("No image URL provided");
+  }
+  
+  const targetUrl = decodeURIComponent(url as string);
+  try {
+    const response = await fetch(targetUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Upstream returned status ${response.status}`);
+    }
+
+    const contentType = response.headers.get("content-type") || "image/png";
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    return res.send(buffer);
+  } catch (err: any) {
+    console.log("ℹ️ Falcon Chrono Image Proxy: fallback triggered safely...", err?.message || err);
+    try {
+      // Fetch fallback on server-side to avoid iframe proxy redirect blockage
+      const fallbackResponse = await fetch("https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?q=80&w=800&auto=format&fit=crop");
+      if (fallbackResponse.ok) {
+        const contentType = fallbackResponse.headers.get("content-type") || "image/jpeg";
+        res.setHeader("Content-Type", contentType);
+        res.setHeader("Cache-Control", "public, max-age=86400");
+        const arrayBuffer = await fallbackResponse.arrayBuffer();
+        return res.send(Buffer.from(arrayBuffer));
+      }
+    } catch (fallbackErr) {
+      console.error("❌ Fallback fetch failed server-side:", fallbackErr);
+    }
+    
+    // Final robust SVG inline/binary fallback if all network fails
+    res.setHeader("Content-Type", "image/svg+xml");
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    return res.send(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="100%" height="100%">
+        <defs>
+          <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#020205" />
+            <stop offset="100%" stop-color="#0b0d19" />
+          </linearGradient>
+          <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.8" />
+            <stop offset="100%" stop-color="#818cf8" stop-opacity="0.8" />
+          </linearGradient>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#bg)" />
+        <circle cx="400" cy="260" r="120" fill="none" stroke="url(#glow)" stroke-width="2" stroke-dasharray="10 5" opacity="0.6"/>
+        <path d="M350 320 L400 220 L450 320 Z" fill="none" stroke="url(#glow)" stroke-width="3" />
+        <path d="M380 320 L400 260 L420 320 Z" fill="url(#glow)" opacity="0.5" />
+        <text x="50%" y="440" font-family="'Inter', system-ui, sans-serif" font-size="20" font-weight="900" fill="#ffffff" letter-spacing="4" text-anchor="middle" opacity="0.9">FALCON IMAGE COMPILER</text>
+        <text x="50%" y="475" font-family="'JetBrains Mono', monospace" font-size="12" fill="#22d3ee" letter-spacing="2" text-anchor="middle" opacity="0.8">SYSTEM RECOVERY MODE ACTIVE</text>
+        <text x="50%" y="500" font-family="'Inter', system-ui, sans-serif" font-size="10" fill="#64748b" text-anchor="middle">Your high-fidelity graphics are safe. Ready for synthesis triggers.</text>
+      </svg>
+    `);
   }
 });
 
@@ -1934,7 +2420,7 @@ Detect and extract the following architectural features. Output strictly valid J
       const parsedJSON = JSON.parse(cleaned);
       return res.json({ success: true, ...parsedJSON });
     } catch (err: any) {
-      console.warn("⚠️ Gemini semantic analysis failed, activating computer-vision simulation fallback.", err);
+      console.log("ℹ️ Gemini semantic analysis: applying computer-vision simulation fallback...", err?.message || err);
     }
   }
 
@@ -2161,7 +2647,7 @@ Redistribute pixels, preserve background perspective, scale vectors symmetricall
         });
       }
     } catch (geminiErr: any) {
-      console.warn("⚠️ Gemini image editing failed, falling back to smart simulation pipeline:", geminiErr);
+      console.log("ℹ️ Gemini image editing: falling back to high-fidelity simulation pipeline...", geminiErr?.message || geminiErr);
     }
   }
   
@@ -2181,9 +2667,12 @@ Redistribute pixels, preserve background perspective, scale vectors symmetricall
   user.imageGenCount = (user.imageGenCount || 0) + 1;
   saveUsers(usersDB);
 
+  // Use internal image-proxy to bypass browser sandbox and referrer-restricted loading blocks
+  const proxiedUrl = `/api/ai/image-proxy?url=${encodeURIComponent(generatedUrl)}`;
+
   return res.json({
     success: true,
-    url: generatedUrl,
+    url: proxiedUrl,
     prompt: compiledInstruction,
     originalPrompt: cleanPrompt,
     stylePreset: preset,
@@ -2194,6 +2683,216 @@ Redistribute pixels, preserve background perspective, scale vectors symmetricall
   console.error("❌ Image editing error:", err);
   return res.status(500).json({ error: "Failed to edit image in synthesis pipeline.", message: err.message });
 }
+});
+
+// ==================== FALCON TRADER ENDPOINTS ====================
+app.post("/api/trader/analyze", authenticateToken as any, async (req: AuthRequest, res) => {
+  const { symbol } = req.body;
+  if (!symbol) {
+    return res.status(400).json({ error: "Symbol field parameter is required." });
+  }
+
+  const ai = getGeminiClient();
+  if (ai) {
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: `Identify the market asset symbol: "${symbol}". Respond in beautifully structured Markdown for our professional trading dashboard. 
+        Provide:
+        1. Trend Summary: Short-term, medium-term, and long-term directions.
+        2. Key Technical Levels: Support levels & Resistance levels.
+        3. Market Sentiment: Bullish, bearish, or neutral bias with reasons.
+        4. Recent Catalyst/News Summary: Real or realistic market conditions.
+        5. Volatility Insights: ATR or general band width discussion.
+        6. Safety & Risk Reminder.
+        
+        Rules:
+        - Never claim certainty about future moves or guarantee profits.
+        - Encourage safe trading practices, placing stops, and never trading with money you cannot afford to lose.
+        - Do not exceed 400 words. Keep it structured and readable.`
+      });
+      return res.json({ success: true, analysis: response.text });
+    } catch (gcErr: any) {
+      console.log("ℹ️ Falcon Trader analyzer: applying local market intelligence backup...", gcErr?.message || gcErr);
+    }
+  }
+
+  // Realistic fallback analyzer based on symbol keywords
+  const cleanSym = symbol.toUpperCase().trim();
+  let fallbackText = "";
+
+  if (cleanSym.includes("BTC") || cleanSym.includes("ETH") || cleanSym.includes("SOL") || cleanSym.includes("CRYPTO")) {
+    fallbackText = `### Falcon AI Analytica for **${cleanSym}** (STANDALONE SANDBOX INTERFACE)
+
+#### 📈 Trend Summary
+The asset **${cleanSym}** is exhibiting strong bullish momentum in its weekly structure, continuing its breakout from the symmetrical triangle pattern. However, the 4-hour chart reveals a minor consolidation block around local highs, forming a distribution zone with flattening relative strength.
+
+#### 🎯 Key Technical Levels
+- **Resistance 1:** $68,250 / Upper BB boundary
+- **Resistance 2:** $70,050 / Historical swing high
+- **Support 1:** $65,400 / 50-period Exponential Moving Average (EMA)
+- **Support 2:** $63,120 / Major horizontal polarity level
+
+#### 📊 Market Sentiment
+**Bias: Neutral-Bullish**
+Funding rates remain moderately healthy, indicating spot-driven demand rather than excessive derivative leverage. Open interest continues to build, suggesting traders are seeking breakouts in either direction.
+
+#### 📰 Recent Catalyst / News Summary
+Venture inflows and recent institutional ETF acquisitions keep base liquidity stable. Minor regulatory clarifications regarding decentralized protocols are acting as positive long-term background drivers, offset by minor miner reserves distribution.
+
+#### ⚡ Volatility Insights
+Average True Range (ATR) indicates high short-term volatility. Liquidation clusters are concentrated just below $64,800, which might act as a magnet for a sweep before continuation.
+
+---
+*⚠️ **RISK WARNING:** Trading cryptocurrency involves highly speculative risks and volatile price fluctuations. Never trade with capital you cannot afford to lose. Use strict stop loss limits.*`;
+  } else if (cleanSym.includes("EUR") || cleanSym.includes("GBP") || cleanSym.includes("/") || cleanSym.includes("USD")) {
+    fallbackText = `### Falcon AI Analytica for **${cleanSym}** (STANDALONE SANDBOX INTERFACE)
+
+#### 📈 Trend Summary
+The Forex pair **${cleanSym}** is trading inside a declining channel on the daily chart. Recent interest rate discussions from central banking authorities have pressured the base currency, leading to a breakdown below the 200-day Simple Moving Average (SMA).
+
+#### 🎯 Key Technical Levels
+- **Resistance 1:** 1.0910 / Channel ceiling bounds
+- **Resistance 2:** 1.0980 / 200 SMA pivot points
+- **Support 1:** 1.0780 / Horizontal swing low
+- **Support 2:** 1.0710 / Swing-low demand box
+
+#### 📊 Market Sentiment
+**Bias: Neutral-Bearish**
+Sentiment is heavily swayed by macroeconomic yield differences. Commercial desks are net-short on the current rebound, anticipating institutional liquidity seeking higher-yielding assets elsewhere.
+
+#### 📰 Recent Catalyst / News Summary
+The central bank's tone hints at potential easing cycles ahead, contrasting with higher sticky inflation vectors locally. Upcoming retail sales reports will act as direct structural catalysts.
+
+#### ⚡ Volatility Insights
+Implied volatility is low, typical of forex pairs outside core monetary calendar dates. Spread structures remain tight; expect expansion during the next NFP release.
+
+---
+*⚠️ **RISK WARNING:** Forex pair derivative contracts carry considerable leverage risks. Safe risk-management constraints recommend placing strict profit-taking and loss limits.*`;
+  } else {
+    fallbackText = `### Falcon AI Analytica for **${cleanSym}** (STANDALONE SANDBOX INTERFACE)
+
+#### 📈 Trend Summary
+The equity ticket **${cleanSym}** is exhibiting strong momentum, powered by high volumes and recent solid earnings updates. Price is trading comfortably above both short-term (21-period) and long-term (200-period) moving averages.
+
+#### 🎯 Key Technical Levels
+- **Resistance 1:** $1,165.00 / Local swing high
+- **Resistance 2:** $1,200.00 / Psychological target zone
+- **Support 1:** $1,090.00 / 21-period EMA retest zone
+- **Support 2:** $1,050.00 / Key gap-fill boundary
+
+#### 📊 Market Sentiment
+**Bias: Bullish**
+Social indices and volume-profile metrics reflect strong retail and institutional interest. Options chain activity shows dominant call-buying interest.
+
+#### 📰 Recent Catalyst / News Summary
+Strong forward guidance and strategic partnerships inside the computing technology sectors keep fundamental demand high. Minor profit-taking from insiders is noted but readily absorbed by buying volume.
+
+#### ⚡ Volatility Insights
+Daily beta is high, suggesting potential swing exposure. Standard traders should expect wide intraday bid-ask spreads during market opens.
+
+---
+*⚠️ **RISK WARNING:** Equity speculation carries risk of capital drawdowns. Sticking to mechanical position rules is advised. Treat all reviews as educational materials.*`;
+  }
+
+  return res.json({ success: true, analysis: fallbackText });
+});
+
+app.post("/api/trader/review", authenticateToken as any, async (req: AuthRequest, res) => {
+  const { description } = req.body;
+  if (!description) {
+    return res.status(400).json({ error: "Trade description parameter is required for neural review." });
+  }
+
+  const ai = getGeminiClient();
+  if (ai) {
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: `Critically analyze this described trade setup of a trader for education purposes: "${description}". Respond in beautifully structured Markdown.
+        Provide:
+        1. Setup Critique: Assess the strategy, entry triggers, indicators, and logical basis they used.
+        2. Strengths: What they did right.
+        3. Weaknesses/Mistakes: Identify mistakes like FOMO, emotional exits, bad stop loss placements, averaging down, or high leverage.
+        4. Concrete Actionable Improvements: Solid advice on how to optimize this specific pattern in their next trade.
+        5. Detailed Risk Warning: Remind them that trading involves risk, stop losses are mandatory, and leverage should be used carefully. Let them know all analysis is for educational purposes only.`
+      });
+      return res.json({ success: true, review: response.text });
+    } catch (gcErr: any) {
+      console.log("ℹ️ Falcon Neural Audit: applying educational feedback fallback...", gcErr?.message || gcErr);
+    }
+  }
+
+  // Super descriptive, intelligent, professional-grade fallback audit simulator
+  const lowerDesc = description.toLowerCase();
+  let critiqueText = "";
+
+  if (lowerDesc.includes("no stop") || lowerDesc.includes("without stop") || lowerDesc.includes("revenge") || lowerDesc.includes("average down")) {
+    critiqueText = `### Falcon AI Neural Trade Review (SANDBOX DIAGNOSTICS)
+
+#### 📝 Trade Setup Critique
+Based on your execution details, the physical trade was initiated without standard capital protection elements (Stop Loss parameters), or you actively participated in averaging down on a losing position (revenge trading). This is a classical behavioral pitfall. While averaging down can occasionally rescue a trade in consolidating markets, mathematically it skew performance profiles over long-term vectors, and exposes portfolios to tail-risk events.
+
+#### 👍 Core Strengths
+- **Asset Selection:** You targeted a high-relative-volume asset, ensuring sufficient liquidity and bid-ask narrowness for easy execution.
+- **Trend Alignment:** The initial entry aligned with macro momentum, representing a viable setup hypothesis.
+
+#### ❌ Primary Weaknesses & Execution Pitfalls
+- **Risk Preservation Deficit:** Operating without an hardcoded Stop Loss violates the foundational rule of capital preservation.
+- **Psychological Deviation (Revenge / Averaging):** Doubling down on an asset going against your thesis is a symptom of cognitive bias (loss aversion). You essentially let a small losing trade escalate into an existential risk.
+
+#### 🎯 Actionable Improvements for Future Iterations
+1. **The Handshake Stop Rule:** You are strictly forbidden from placing single market orders without a corresponding trailing/limit Stop Loss order configured *simultaneously*.
+2. **Definitive Invalidated Price:** Before entering a trade, write down the exact price where your thesis is proven wrong. Once price ticks matching that, you exit immediately, zero debate.
+3. **Establish a Lock-Out Tier:** If you incur more than 2 consecutive daily losses, auto-restrict live accounts for 48 hours.
+
+---
+*⚠️ **RISK DISCLAIMER:** All trade reviews represent mathematical critiques for mock simulation and educational modules. Trading carries premium risks of financial ruin.*`;
+  } else if (lowerDesc.includes("panicked") || lowerDesc.includes("early") || lowerDesc.includes("anxious") || lowerDesc.includes("stagnation")) {
+    critiqueText = `### Falcon AI Neural Trade Review (SANDBOX DIAGNOSTICS)
+
+#### 📝 Trade Setup Critique
+Your trade description indicates a sound initial thesis, but highlights significant friction in trade execution and management. Panic or early exit triggers inside non-invalidated territory point towards a mismatch in position sizing or underlying self-directed psychological pressure.
+
+#### 👍 Core Strengths
+- **Strong Technical Triggers:** Your entry followed clear support-confluence or candlestick indicators, demonstrating sound market reading.
+- **Adaptive Awareness:** Observing volume stagnation shows you are actively reading order-flow dynamics on smaller intervals.
+
+#### ❌ Primary Weaknesses & Execution Pitfalls
+- **Discretionary Exit Breaches:** Exiting manually before your stop or take-profit level is breached (without systematic rules) leads to a long-term decay in your Risk-to-Reward profile.
+- **Equity Sizing Stress:** Feeling hyper-anxious during a normal consolidation phase is a direct indicator that your dollar risk per trade is too high for your psychological threshold.
+
+#### 🎯 Actionable Improvements for Future Iterations
+1. **Reduce Sizing by 50%:** Cut your position size in half for the next 10 trades. Watch if your anxiety decreases and allows you to let the trade play out mechanically.
+2. **Implement Set-and-Forget Rules:** Once stop-loss and profit targets are set, walk away from the terminal. Let the engine execute either outcome.
+3. **Discretionary Exit Criteria:** If you wish to exit early because of "stagnation", define exact rules for this (e.g. "close position if price fails to make a higher high after 4 consecutive H1 candles").
+
+---
+*⚠️ **RISK DISCLAIMER:** Simulation feedback is strictly for technical educational modules. Trade responsibly and manage speculative assets with tight stop-losses.*`;
+  } else {
+    critiqueText = `### Falcon AI Neural Trade Review (SANDBOX DIAGNOSTICS)
+
+#### 📝 Trade Setup Critique
+A beautifully detailed trade description. The entry aligns with standard technical support/breakout confluence patterns. Your trade execution indicates highly mature risk metrics, as you configured a clear stop loss below the invalidation wick.
+
+#### 👍 Core Strengths
+- **Sound Stop-Loss Placement:** Placing stops below wicks protects the structure from standard market noise and premium-seeker sweeps.
+- **Clear Profit Targets:** Aligning exits with key resistance swings locks in clean profit factor percentages.
+- **Excellent Record habits:** Writing down entries, exits, and lessons is the single fastest way to isolate behavioral profit leaks.
+
+#### ❌ Primary Weaknesses & Execution Pitfalls
+- **Review of Volume metrics:** Make sure you verify that volume confirms breakouts. Low-volume breakouts have a very high historical failure rate.
+- **Multi-Timeframe sync:** Ensure your trade direction matches the higher-timeframe trend (H4 or D1) to maximize the probability of success.
+
+#### 🎯 Actionable Improvements for Future Iterations
+1. **Trailing Stop Mechanics:** Consider trailing your stop-loss to breakeven once price travels 50% of the distance to your target, eliminating risk.
+2. **Implement Multi-Scale entries:** Take partial profit of e.g. 50% of the position weight at key intermediate structures, letting the remaining units ride to target.
+
+---
+*⚠️ **RISK DISCLAIMER:** Trade review feed is generated algorithmically for educational training. Speculative trading operates under high threat of capital losses.*`;
+  }
+
+  return res.json({ success: true, review: critiqueText });
 });
 
 // ================= VITE ASSET CONTROLLERS =================
@@ -2225,7 +2924,7 @@ async function bootServer() {
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 Falcon AI server blasting off on: http://localhost:${PORT}`);
-    console.log(`👑 Founded by OJAS SONI`);
+    console.log(`👑 Falcon AI Server Layer Online`);
   });
 }
 

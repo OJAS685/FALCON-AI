@@ -230,13 +230,13 @@ export default function AuthModal({ onSuccess, onClose }: AuthModalProps) {
     // Setup high identity mock coordinates to sync dynamically with backend Node API
     const profiles: Record<string, { email: string; name: string; avatar: string }> = {
       google: {
-        email: 'ojassoni_partner@gmail.com',
-        name: 'Ojas Creator Partner',
+        email: 'guest_partner@gmail.com',
+        name: 'Guest Partner',
         avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=150&auto=format&fit=crop'
       },
       github: {
         email: 'awaneesh_contributor@github.com',
-         name: 'Ojas Soni Developer',
+         name: 'Falcon Developer',
          avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150&auto=format&fit=crop'
       },
       discord: {
@@ -319,7 +319,7 @@ export default function AuthModal({ onSuccess, onClose }: AuthModalProps) {
                 : forgotMode 
                   ? 'Zero-knowledge cryptographical restore' 
                   : isLogin 
-                    ? 'Sleek premium interface engineered by OJAS SONI' 
+                    ? 'Sleek premium interface engineered by Falcon AI Team' 
                     : 'Synthesize standard client or admin vectors'}
           </p>
         </div>
@@ -537,7 +537,7 @@ export default function AuthModal({ onSuccess, onClose }: AuthModalProps) {
                         required
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        placeholder="Ojas Soni"
+                        placeholder="Alex Carter"
                         className="w-full pl-11 pr-4 py-3 rounded-xl glass-input outline-none text-[11px] font-sans"
                       />
                     </div>
@@ -552,7 +552,7 @@ export default function AuthModal({ onSuccess, onClose }: AuthModalProps) {
                         required
                         value={username}
                         onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))}
-                        placeholder="ojassoni"
+                        placeholder="alexcarter"
                         className="w-full pl-11 pr-4 py-3 rounded-xl glass-input outline-none text-[11px] font-sans text-cyan-200"
                       />
                     </div>
@@ -572,7 +572,7 @@ export default function AuthModal({ onSuccess, onClose }: AuthModalProps) {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder={isLogin ? "name@example.com or ojassoni" : "name@example.com"}
+                    placeholder={isLogin ? "name@example.com or alexcarter" : "name@example.com"}
                     className="w-full pl-11 pr-4 py-3.5 rounded-xl glass-input outline-none text-xs font-sans"
                   />
                 </div>

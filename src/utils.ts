@@ -532,9 +532,10 @@ export async function editAIImage(
       lighting: `A highly cinematic photo with moody light prisms and epic shadows. Style: ${stylePreset}`
     };
     const finalPrompt = mockActionPrompts[action] || `A stunning realistic edited version of the subject: ${prompt}`;
+    const generatedUrl = `https://image.pollinations.ai/p/${encodeURIComponent(finalPrompt)}?width=768&height=768&seed=${randomSeed}&model=flux&nologo=true`;
     return {
       success: true,
-      url: `https://image.pollinations.ai/p/${encodeURIComponent(finalPrompt)}?width=768&height=768&seed=${randomSeed}&model=flux&nologo=true`,
+      url: `/api/ai/image-proxy?url=${encodeURIComponent(generatedUrl)}`,
       prompt: finalPrompt,
       model: "Falcon-X Creative Editing Core (Fallback)"
     };

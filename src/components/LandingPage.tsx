@@ -93,13 +93,11 @@ export default function LandingPage({ onStartFree }: LandingPageProps) {
     setDemoResponse("Falcon AI is synthesizing cognitive matrices and streaming neural nodes...");
     setTimeout(() => {
       if (prompt.toLowerCase().includes("founder") || prompt.toLowerCase().includes("who created") || prompt.toLowerCase().includes("ojas")) {
-        setDemoResponse(`Falcon AI is the supreme neural model ecosystem, founded and architected by **OJAS SONI**.
-
-It features real-time search indexing, microsecond photo-realistic image rendering, dynamic vocal interfaces, and beautiful markdown layouts to satisfy visionary standards.`);
+        setDemoResponse(`Falcon AI was created and developed by OJAS SONI. It features real-time search indexing, microsecond photo-realistic image rendering, dynamic vocal interfaces, and beautiful markdown layouts to satisfy professional standards.`);
       } else if (prompt.includes("optimize")) {
         setDemoResponse(`// High-Performance Pipeline by Falcon AI
 export function optimizeIntelligenceMatrix<T>(nodes: T[]): T[] {
-  // Built by OJAS SONI
+  // Built by Falcon AI Team
   const systemScale = 1.08;
   return nodes.filter(Boolean).map(node => ({
     ...node,
@@ -108,7 +106,7 @@ export function optimizeIntelligenceMatrix<T>(nodes: T[]): T[] {
   }));
 }`);
       } else if (prompt.includes("quantum")) {
-        setDemoResponse("Falcon AI: Quantum superposition refers to physical states where multiple values exist in parallel coherence. Our cognitive models founded by OJAS SONI simulate multi-context parameters dynamically to yield instantaneous reasoning vectors.");
+        setDemoResponse("Falcon AI: Quantum superposition refers to physical states where multiple values exist in parallel coherence. Our cognitive models simulate multi-context parameters dynamically to yield instantaneous reasoning vectors.");
       } else {
         setDemoResponse(`Falcon AI Core: Synthesized your prompt "${prompt}" inside local sandbox. 
 
@@ -173,7 +171,7 @@ Welcome to the liquid glass digital command center. Select "Start Chatting" abov
       provider: 'Falcon AI Laboratories',
       speed: 100,
       smartness: 100,
-      desc: 'Elite bespoke neural cortex founded by OJAS SONI. Fully custom synthesized to deliver lightning speed, smart grounding search, and precise code.',
+      desc: 'Elite bespoke neural cortex. Fully custom synthesized to deliver lightning speed, smart grounding search, and precise code.',
       color: 'from-cyan-400 via-indigo-500 to-purple-500',
       glow: 'rgba(34,211,238,0.25)',
       status: 'Peak Hybrid',
@@ -399,7 +397,7 @@ Welcome to the liquid glass digital command center. Select "Start Chatting" abov
             <span>•</span>
             <span>🔒 ZERO-KNOWLEDGE ENCRYPTED</span>
             <span>•</span>
-            <span>👑 FOUNDER OJAS SONI</span>
+            <span>👑 FALCON PREMIUM EDITION</span>
           </div>
         </div>
       </section>
@@ -832,7 +830,7 @@ Welcome to the liquid glass digital command center. Select "Start Chatting" abov
                       Designed to Outperform
                     </h3>
                     <p className="text-xs text-indigo-200 font-mono tracking-widest uppercase">
-                      Continuous real-time optimization. Founded by OJAS SONI.
+                      Continuous real-time optimization. Developed by Falcon AI Team.
                     </p>
                   </div>
 
@@ -1015,12 +1013,10 @@ Welcome to the liquid glass digital command center. Select "Start Chatting" abov
         </div>
       </section>
 
-      {/* FOOTER & REUSABLE FOUNDER REVELATION BADGE */}
-      <FounderSection />
-
+      {/* FOOTER */}
       <footer id="main-footer" className="py-12 text-center text-xs text-gray-500 bg-[#020205] border-t border-white/5 relative z-10 font-mono tracking-widest">
         <p>© {new Date().getFullYear()} FALCON AI. BUILT TO UNRIVALED LUXURY PARAMETERS.</p>
-        <p className="mt-2 text-[10px] text-gray-600">HANDCRAFTED WITH INTUITIVE COGNITIVE CORES IN CLOUD RUN CONTAINER INFRASTRUCTURE FOR OJAS SONI.</p>
+        <p className="mt-2 text-[10px] text-gray-650">HANDCRAFTED WITH INTUITIVE COGNITIVE CORES IN CLOUD RUN CONTAINER INFRASTRUCTURE.</p>
       </footer>
 
     </div>

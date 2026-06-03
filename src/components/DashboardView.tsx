@@ -4,7 +4,7 @@ import {
   Send, Sparkles, User, Settings, Check, Copy, HelpCircle, Download, Trash2, Globe, Volume2, Play, RefreshCw, Cpu,
   Menu, X, Paperclip, Camera, Sliders, ChevronDown, Radio, Activity, Terminal, Shield, Zap, Edit, Undo, Eye, VolumeX, RadioReceiver, Sparkle,
   Pause, Square, SkipForward, SkipBack,
-  Folder, FolderPlus, FileText, GraduationCap, BookOpen, Calendar, Plus, Pin, ClipboardList, CheckSquare, Megaphone, Video, Hash
+  Folder, FolderPlus, FileText, GraduationCap, BookOpen, Calendar, Plus, Pin, ClipboardList, CheckSquare, Megaphone, Video, Hash, Compass, Clock, TrendingUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
@@ -12,6 +12,7 @@ import { User as UserType, Message, ChatSession, ImageSnippet, VoiceState } from
 import { sendChatMessage, generateAIImage, editAIImage, analyzeAIImage, SpeechController } from '../utils';
 import { soundEngine, SoundSettings, SoundMode } from '../utils/soundEngine';
 import FalconLogo from './FalconLogo';
+import TraderModeView from './TraderModeView';
 
 interface DashboardViewProps {
   user: UserType;
@@ -22,7 +23,7 @@ interface DashboardViewProps {
 type ModelType = 'gpt' | 'gemini' | 'claude' | 'deepseek' | 'falcon';
 
 export default function DashboardView({ user, onLogout, onUserUpdate }: DashboardViewProps) {
-  const [activeTab, setActiveTab ] = useState<'chat' | 'images' | 'voice' | 'search' | 'code' | 'writer' | 'analytics' | 'account' | 'evolution' | 'projects' | 'memories' | 'student' | 'creator-studio'>('chat');
+  const [activeTab, setActiveTab ] = useState<'chat' | 'images' | 'voice' | 'search' | 'code' | 'writer' | 'analytics' | 'account' | 'evolution' | 'projects' | 'memories' | 'student' | 'creator-studio' | 'lifeos' | 'futureself' | 'trader'>('chat');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Premium Cortex XP & Engagement State Engine
@@ -526,6 +527,41 @@ export default function DashboardView({ user, onLogout, onUserUpdate }: Dashboar
   const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
   const [editingMemoryContent, setEditingMemoryContent] = useState('');
 
+  // LifeOS Operating System State
+  const [lifeosData, setLifeosData] = useState<{
+    reflections: any[];
+    goals: any[];
+    decisions: any[];
+    vault: any[];
+  }>({ reflections: [], goals: [], decisions: [], vault: [] });
+
+  const [newReflectionAccomplished, setNewReflectionAccomplished] = useState('');
+  const [newReflectionLearned, setNewReflectionLearned] = useState('');
+  const [newReflectionImprove, setNewReflectionImprove] = useState('');
+
+  const [newGoalTitle, setNewGoalTitle] = useState('');
+  const [newGoalTimeframe, setNewGoalTimeframe] = useState<'daily' | 'weekly' | 'long-term'>('daily');
+
+  const [newDecisionPremise, setNewDecisionPremise] = useState('');
+  const [simulatingDecision, setSimulatingDecision] = useState(false);
+
+  const [newVaultTitle, setNewVaultTitle] = useState('');
+  const [newVaultContent, setNewVaultContent] = useState('');
+  const [newVaultDocType, setNewVaultDocType] = useState<'idea' | 'note' | 'research'>('idea');
+
+  // Future Self State
+  const [futureSelfData, setFutureSelfData] = useState<{
+    profile: any;
+    roadmap: any;
+    adaptationLogs: any[];
+  }>({ profile: null, roadmap: null, adaptationLogs: [] });
+
+  const [futureSelfAge, setFutureSelfAge] = useState('');
+  const [futureSelfGoal, setFutureSelfGoal] = useState('');
+  const [futureSelfDreamCareer, setFutureSelfDreamCareer] = useState('');
+  const [futureSelfProject, setFutureSelfProject] = useState('');
+  const [simulatingFutureSelf, setSimulatingFutureSelf] = useState(false);
+
   // Active Project Context Node
   const [projects, setProjects] = useState<any[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
@@ -720,6 +756,35 @@ export default function DashboardView({ user, onLogout, onUserUpdate }: Dashboar
         if (data.success && data.drafts) setActiveDrafts(data.drafts);
       })
       .catch(err => console.error("Creator pipeline offline:", err));
+
+    // 5. Fetch LifeOS datasets
+    fetch("/api/user/lifeos", {
+      headers: { "Authorization": `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.lifeosData) setLifeosData(data.lifeosData);
+      })
+      .catch(err => console.error("LifeOS pipeline offline:", err));
+
+    // 6. Fetch Future Self datasets
+    fetch("/api/user/futureself", {
+      headers: { "Authorization": `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.futureSelfData) {
+          setLifeosData(prev => ({ ...prev })); // keep reference
+          setFutureSelfData(data.futureSelfData);
+          if (data.futureSelfData.profile) {
+            setFutureSelfAge(data.futureSelfData.profile.age);
+            setFutureSelfGoal(data.futureSelfData.profile.goal);
+            setFutureSelfDreamCareer(data.futureSelfData.profile.dreamCareer);
+            setFutureSelfProject(data.futureSelfData.profile.project);
+          }
+        }
+      })
+      .catch(err => console.error("Future Self pipeline offline:", err));
   }, []);
 
   // Synchronise page/tab swap sound effects on view shifts
@@ -864,11 +929,11 @@ interface UserJob {
 }
 
 const users: UserJob[] = [
-  { id: "u1", name: "Ojas Soni", role: "Founding Engineer" },
+  { id: "u1", name: "Falcon Architect", role: "Founding Engineer" },
   { id: "u2", name: "Premium Client", role: "Validator Mode" }
 ];
 
-console.log("Founding check successfully evaluated, founder name is: Ojas Soni");
+console.log("Founding check successfully evaluated, founder name is: Falcon AI Team");
 users.forEach(u => console.log(\`[Runtime] Parsing Job for: \${u.name} - \${u.role}\`));
 `);
   const [sandboxOutput, setSandboxOutput] = useState<string[]>([
@@ -1335,6 +1400,234 @@ users.forEach(u => console.log(\`[Runtime] Parsing Job for: \${u.name} - \${u.ro
       }
     } catch(err) {
       showToast("Action timeline timed out.", "error");
+    }
+  };
+
+  const handleAddNewReflection = async () => {
+    if (!newReflectionAccomplished.trim() || !newReflectionLearned.trim() || !newReflectionImprove.trim()) return;
+    try {
+      const token = localStorage.getItem('falcon_token');
+      const res = await fetch("/api/user/lifeos/reflections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({
+          accomplished: newReflectionAccomplished,
+          learned: newReflectionLearned,
+          improve: newReflectionImprove
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLifeosData(prev => ({
+          ...prev,
+          reflections: [data.reflection, ...(prev.reflections || [])]
+        }));
+        setNewReflectionAccomplished('');
+        setNewReflectionLearned('');
+        setNewReflectionImprove('');
+        showToast("Daily Reflection successfully registered!", "success");
+      }
+    } catch(err) {
+      showToast("Could not save reflection.", "error");
+    }
+  };
+
+  const handleAddNewGoal = async () => {
+    if (!newGoalTitle.trim()) return;
+    try {
+      const token = localStorage.getItem('falcon_token');
+      const res = await fetch("/api/user/lifeos/goals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ title: newGoalTitle, timeframe: newGoalTimeframe })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLifeosData(prev => ({
+          ...prev,
+          goals: [...(prev.goals || []), data.goal]
+        }));
+        setNewGoalTitle('');
+        showToast("Goal indexed successfully!", "success");
+      }
+    } catch(err) {
+      showToast("Could not add goal milestone.", "error");
+    }
+  };
+
+  const handleToggleGoal = async (gId: string) => {
+    try {
+      const token = localStorage.getItem('falcon_token');
+      const res = await fetch(`/api/user/lifeos/goals/${gId}/toggle`, {
+        method: "PUT",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLifeosData(prev => ({
+          ...prev,
+          goals: (prev.goals || []).map(g => g.id === gId ? data.goal : g)
+        }));
+        showToast("Goal metric updated.", "success");
+      }
+    } catch(err) {
+      showToast("Could not toggle goal.", "error");
+    }
+  };
+
+  const handleDeleteGoal = async (gId: string) => {
+    try {
+      const token = localStorage.getItem('falcon_token');
+      const res = await fetch(`/api/user/lifeos/goals/${gId}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLifeosData(prev => ({
+          ...prev,
+          goals: (prev.goals || []).filter(g => g.id !== gId)
+        }));
+        showToast("Goal successfully deleted.", "success");
+      }
+    } catch(err) {
+      showToast("Could not prune goal milestone.", "error");
+    }
+  };
+
+  const handleSimulateDecision = async () => {
+    if (!newDecisionPremise.trim()) return;
+    setSimulatingDecision(true);
+    try {
+      const token = localStorage.getItem('falcon_token');
+      const res = await fetch("/api/user/lifeos/decisions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ decision: newDecisionPremise })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLifeosData(prev => ({
+          ...prev,
+          decisions: [data.decision, ...(prev.decisions || [])]
+        }));
+        setNewDecisionPremise('');
+        showToast("Decision simulation matrix completed!", "success");
+      }
+    } catch(err) {
+      showToast("Decision engine analysis offline.", "error");
+    } finally {
+      setSimulatingDecision(false);
+    }
+  };
+
+  const handleAddNewVaultItem = async () => {
+    if (!newVaultTitle.trim() || !newVaultContent.trim()) return;
+    try {
+      const token = localStorage.getItem('falcon_token');
+      const res = await fetch("/api/user/lifeos/vault", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ title: newVaultTitle, content: newVaultContent, docType: newVaultDocType })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLifeosData(prev => ({
+          ...prev,
+          vault: [data.item, ...(prev.vault || [])]
+        }));
+        setNewVaultTitle('');
+        setNewVaultContent('');
+        showToast("Document successfully indexed inside Knowledge Vault!", "success");
+      }
+    } catch(err) {
+      showToast("Could not add vault assets.", "error");
+    }
+  };
+
+  const handleDeleteVaultItem = async (itemId: string) => {
+    try {
+      const token = localStorage.getItem('falcon_token');
+      const res = await fetch(`/api/user/lifeos/vault/${itemId}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLifeosData(prev => ({
+          ...prev,
+          vault: (prev.vault || []).filter(item => item.id !== itemId)
+        }));
+        showToast("Document removed from Knowledge Vault.", "success");
+      }
+    } catch(err) {
+      showToast("Could not index deleted assets.", "error");
+    }
+  };
+
+  const handleClearAllMemories = async () => {
+    try {
+      const token = localStorage.getItem('falcon_token');
+      const res = await fetch("/api/user/memories", {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMemories([]);
+        showToast("All cognitive memory matrix nodes have been erased.", "success");
+      }
+    } catch(err) {
+      showToast("Clear memories command unsuccessful.", "error");
+    }
+  };
+
+  const handleSimulateFutureSelf = async () => {
+    if (!futureSelfAge.trim() || !futureSelfGoal.trim() || !futureSelfDreamCareer.trim() || !futureSelfProject.trim()) {
+      showToast("Please provide all profile parameters to build the quantum projection.", "error");
+      return;
+    }
+    setSimulatingFutureSelf(true);
+    try {
+      const token = localStorage.getItem('falcon_token');
+      const res = await fetch("/api/user/futureself/simulate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({
+          age: Number(futureSelfAge),
+          goal: futureSelfGoal,
+          dreamCareer: futureSelfDreamCareer,
+          project: futureSelfProject
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFutureSelfData(data.futureSelfData);
+        showToast("Personalized 5-Year Quantum Roadmap simulated successfully!", "success");
+      } else {
+        showToast(data.error || "Projection compiling error.", "error");
+      }
+    } catch(err) {
+      showToast("Quantum simulation link lost.", "error");
+    } finally {
+      setSimulatingFutureSelf(false);
+    }
+  };
+
+  const handleToggleFutureSelfMilestone = async (mId: string) => {
+    try {
+      const token = localStorage.getItem('falcon_token');
+      const res = await fetch(`/api/user/futureself/milestones/${mId}/toggle`, {
+        method: "PUT",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFutureSelfData(data.futureSelfData);
+        showToast("Progress milestones and adaptive vector synchronized.", "success");
+      }
+    } catch(err) {
+      showToast("Could not record milestone vector completion.", "error");
     }
   };
 
@@ -2232,7 +2525,7 @@ users.forEach(u => console.log(\`[Runtime] Parsing Job for: \${u.name} - \${u.ro
         `[AST Parser] Compiled successfully without warnings. Transpiling TypeScript code...`,
         `[Memory Engine] Checked leaks and limits. Status: Optimized green.`,
         ...extractedLogs,
-        `[Telemetry Console] Thread exited successfully with status 0. (Compiled inside Falcon AI designed by Ojas Soni)`
+        `[Telemetry Console] Thread exited successfully with status 0. (Compiled inside Falcon AI)`
       ]);
 
       setSandboxCompiling(false);
@@ -2246,7 +2539,7 @@ users.forEach(u => console.log(\`[Runtime] Parsing Job for: \${u.name} - \${u.ro
     if (!writerTopic.trim()) return;
     setWriterLoading(true);
 
-    const fullPrompt = `Synthesize a high-quality piece of writing based on the topic: "${writerTopic}". Apply template style guidelines appropriate for: ${writerTemplate.toUpperCase()}. Write 3-4 professional, well-structured paragraphs. Keep the tone engaging and polished. Mention that Falcon AI was designed by Ojas Soni if asked about authorship or design.`;
+    const fullPrompt = `Synthesize a high-quality piece of writing based on the topic: "${writerTopic}". Apply template style guidelines appropriate for: ${writerTemplate.toUpperCase()}. Write 3-4 professional, well-structured paragraphs. Keep the tone engaging and polished.`;
 
     try {
       const result = await sendChatMessage(
@@ -2559,6 +2852,17 @@ users.forEach(u => console.log(\`[Runtime] Parsing Job for: \${u.name} - \${u.ro
             </button>
 
             <button
+              onClick={() => { setActiveTab('trader'); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl transition-all text-xs font-mono uppercase tracking-widest cursor-pointer group ${activeTab === 'trader' ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-400/25 shadow-[0_0_15px_rgba(34,211,238,0.1)]' : 'text-gray-400 hover:text-white hover:bg-white/[0.03]'}`}
+            >
+              <div className="flex items-center gap-3">
+                <TrendingUp className="w-4 h-4 text-cyan-300 animate-pulse" />
+                <span>Falcon Trader</span>
+              </div>
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 scale-100 group-hover:opacity-100 opacity-0 transition-opacity"></span>
+            </button>
+
+            <button
               onClick={() => { setActiveTab('creator-studio'); setIsSidebarOpen(false); }}
               className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl transition-all text-xs font-mono uppercase tracking-widest cursor-pointer group ${activeTab === 'creator-studio' ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-400/25' : 'text-gray-400 hover:text-white hover:bg-white/[0.03]'}`}
             >
@@ -2578,6 +2882,28 @@ users.forEach(u => console.log(\`[Runtime] Parsing Job for: \${u.name} - \${u.ro
                 <span>Memory Matrix</span>
               </div>
               <span className="w-1.5 h-1.5 rounded-full bg-purple-400 scale-100 group-hover:opacity-100 opacity-0 transition-opacity"></span>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('lifeos'); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl transition-all text-xs font-mono uppercase tracking-widest cursor-pointer group ${activeTab === 'lifeos' ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-400/25' : 'text-gray-400 hover:text-white hover:bg-white/[0.03]'}`}
+            >
+              <div className="flex items-center gap-3">
+                <Activity className="w-4 h-4 text-emerald-400 animate-pulse" />
+                <span>LifeOS Dashboard</span>
+              </div>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 scale-100 group-hover:opacity-100 opacity-0 transition-opacity"></span>
+            </button>
+
+            <button
+              onClick={() => { setActiveTab('futureself'); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl transition-all text-xs font-mono uppercase tracking-widest cursor-pointer group ${activeTab === 'futureself' ? 'bg-purple-500/10 text-purple-300 border border-purple-400/25' : 'text-gray-400 hover:text-white hover:bg-white/[0.03]'}`}
+            >
+              <div className="flex items-center gap-3">
+                <Compass className="w-4 h-4 text-pink-400 animate-spin" style={{ animationDuration: '10s' }} />
+                <span>Future Self</span>
+              </div>
+              <span className="w-1.5 h-1.5 rounded-full bg-pink-400 scale-100 group-hover:opacity-100 opacity-0 transition-opacity"></span>
             </button>
           </div>
 
@@ -2738,7 +3064,7 @@ users.forEach(u => console.log(\`[Runtime] Parsing Job for: \${u.name} - \${u.ro
           </div>
           <div className="mt-4 text-center">
             <span className="text-[8px] text-gray-650 block leading-none font-mono tracking-widest uppercase select-none">
-              Falcon AI • Designed by Ojas Soni
+              Falcon AI • Standalone Workspace
             </span>
           </div>
         </div>
@@ -3303,7 +3629,7 @@ users.forEach(u => console.log(\`[Runtime] Parsing Job for: \${u.name} - \${u.ro
                         <Cpu className="w-4 h-4 animate-bounce" />
                       </div>
                       <p className="leading-relaxed text-left">
-                        Backed by <strong className="text-gray-200">Flux Schnell local engine systems</strong> designed specifically to output clean high-contrast glassmorphic textures for OJAS SONI.
+                        Backed by <strong className="text-gray-200">Flux Schnell local engine systems</strong> designed specifically to output clean high-contrast glassmorphic textures for premium workflows.
                       </p>
                     </div>
 
@@ -4169,7 +4495,7 @@ users.forEach(u => console.log(\`[Runtime] Parsing Job for: \${u.name} - \${u.ro
                           ? speechEngineState.isPaused 
                             ? 'Speech synthesis paused • Standby'
                             : `Streaming Audible Signals • Sentence ${speechEngineState.currentSentenceIndex + 1} of ${speechEngineState.totalSentences}`
-                          : 'Audio Assistant Online • Designed by OJAS SONI'}
+                          : 'Audio Assistant Online • Falcon AI System'}
                   </p>
                 </div>
 
@@ -4454,7 +4780,7 @@ users.forEach(u => console.log(\`[Runtime] Parsing Job for: \${u.name} - \${u.ro
                     <p className="text-cyan-400">// Code execution module indicators</p>
                     <p>&gt; Compiler status: operational</p>
                     <p>&gt; Target Platform: {selectedLanguage.toUpperCase()}</p>
-                    <p>&gt; Project Architect: OJAS SONI</p>
+                    <p>&gt; Project Architect: Falcon AI Team</p>
                   </div>
                 </div>
 
@@ -4765,7 +5091,7 @@ users.forEach(u => console.log(\`[Runtime] Parsing Job for: \${u.name} - \${u.ro
                   
                   {/* Specification list */}
                   <div className="bg-[#020205]/40 p-3.5 rounded-2xl border border-white/5 space-y-2 text-[11px] text-gray-400">
-                    <p>⚡ Head Master Architect: <strong className="text-white">OJAS SONI</strong></p>
+                    <p>⚡ Head Master Architect: <strong className="text-white">Falcon AI Team</strong></p>
                     <p>⚡ Platform Authorized Active: <span className="text-emerald-400 font-bold">{user.email}</span></p>
                     <p>⚡ Selected Cortex Model: <span className="text-cyan-300">{dboardModelSpecs[dashboardModel].name}</span></p>
                     <p>⚡ Synapse Latency Tuning: <span className="text-indigo-300">{dboardModelSpecs[dashboardModel].latency}</span></p>
@@ -6334,6 +6660,30 @@ users.forEach(u => console.log(\`[Runtime] Parsing Job for: \${u.name} - \${u.ro
           )}
 
           {/* ============================================================================
+              K-2. FALCON TRADER TERMINAL v1.0
+              ============================================================================ */}
+          {activeTab === 'trader' && (
+            <div id="trader-workspace" className="absolute inset-0 overflow-y-auto pr-1 text-left space-y-6 pb-12">
+              <div className="relative p-6 rounded-3xl overflow-hidden bg-gradient-to-r from-[#030e25]/90 to-[#01040f]/95 border border-cyan-500/15 shadow-2xll">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
+                <div className="relative z-10 space-y-1">
+                  <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-400/20 text-cyan-400 font-mono text-[9.5px] font-bold tracking-widest uppercase mb-1.5 inline-block">
+                    ⚡ FALCON TRADER TERMINAL v1.0
+                  </span>
+                  <h2 className="text-xl font-bold text-white tracking-tight font-sans uppercase">
+                    Interactive Markets & Risk Command
+                  </h2>
+                  <p className="text-xs text-gray-400 font-sans max-w-xl">
+                    Construct risk allocations, compile neural asset analysis, keep trade executions synchronized, and audit setup statistics dynamically with standard security shields.
+                  </p>
+                </div>
+              </div>
+
+              <TraderModeView user={user} />
+            </div>
+          )}
+
+          {/* ============================================================================
               K. CREATOR STUDIO SYSTEM (ONE-CLICK PACKAGING MULTIPLEXER)
               ============================================================================ */}
           {activeTab === 'creator-studio' && (
@@ -6578,16 +6928,26 @@ users.forEach(u => console.log(\`[Runtime] Parsing Job for: \${u.name} - \${u.ro
             <div id="memory-central-vault-workspace" className="absolute inset-0 overflow-y-auto pr-1 text-left space-y-6 pb-12">
               <div className="relative p-6 rounded-3xl overflow-hidden bg-gradient-to-r from-[#0a050d]/85 to-[#030205]/95 border border-purple-500/15 shadow-2xl">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
-                <div className="relative z-10 space-y-1">
-                  <span className="px-2.5 py-0.5 rounded-full bg-purple-500/10 border border-purple-400/20 text-purple-400 font-mono text-[9px] font-bold tracking-widest uppercase mb-1.5 inline-block">
-                    ⚡ ACTIVE MEMORY MATRIX VAULT
-                  </span>
-                  <h2 className="text-xl font-bold text-white tracking-tight font-sans uppercase">
-                    Falcon Persistent Memory Matrix
-                  </h2>
-                  <p className="text-xs text-gray-400 font-sans max-w-xl">
-                    View, insert, update and forget memory coordinates stored dynamically in the Falcon intelligence core. Our neural chat vectors query these segments automatically!
-                  </p>
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div className="space-y-1">
+                    <span className="px-2.5 py-0.5 rounded-full bg-purple-500/10 border border-purple-400/20 text-purple-400 font-mono text-[9px] font-bold tracking-widest uppercase mb-1.5 inline-block">
+                      ⚡ ACTIVE MEMORY MATRIX VAULT
+                    </span>
+                    <h2 className="text-xl font-bold text-white tracking-tight font-sans uppercase">
+                      Falcon Persistent Memory Matrix
+                    </h2>
+                    <p className="text-xs text-gray-400 font-sans max-w-xl">
+                      View, insert, update and forget memory coordinates stored dynamically in the Falcon intelligence core. Our neural chat vectors query these segments automatically!
+                    </p>
+                  </div>
+                  <div>
+                    <button
+                      onClick={handleClearAllMemories}
+                      className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-400/20 text-rose-300 text-xs font-mono uppercase tracking-widest rounded-xl transition-all cursor-pointer whitespace-nowrap"
+                    >
+                      Erase Memory Matrix 💀
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -6603,7 +6963,7 @@ users.forEach(u => console.log(\`[Runtime] Parsing Job for: \${u.name} - \${u.ro
                     <div className="space-y-1">
                       <label className="text-[10px] font-mono text-gray-500 uppercase block">Recall content</label>
                       <textarea
-                        placeholder="Say 'User prefers pure TypeScript code solutions' or 'Founder Ojas Soni loves clean minimalist spaces'..."
+                        placeholder="Say 'User prefers pure TypeScript code solutions' or 'User likes dark high-contrast sleek dashboards'..."
                         value={newMemoryContent}
                         onChange={(e) => setNewMemoryContent(e.target.value)}
                         rows={4}
@@ -6708,6 +7068,557 @@ users.forEach(u => console.log(\`[Runtime] Parsing Job for: \${u.name} - \${u.ro
 
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* ============================================================================
+              M. ACTIVE PERSISTENT LIFEOS INTELLIGENT EXECUTIVE
+              ============================================================================ */}
+          {activeTab === 'lifeos' && (
+            <div id="lifeos-central-dashboard" className="absolute inset-0 overflow-y-auto pr-1 text-left space-y-6 pb-12">
+              {/* Header Showcase */}
+              <div className="relative p-6 rounded-3xl overflow-hidden bg-gradient-to-r from-[#030e0a]/85 to-[#010503]/95 border border-emerald-500/10 shadow-2xl">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none animate-pulse" />
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-400/20 text-emerald-400 font-mono text-[9px] font-bold tracking-widest uppercase mb-1.5 inline-block animate-pulse">
+                      ⚡ FALCON LIFEOS NEURAL CONTROLLER
+                    </span>
+                    <h2 className="text-xl font-bold text-white tracking-tight font-sans uppercase">
+                      Falcon Life Operating System
+                    </h2>
+                    <p className="text-xs text-gray-400 font-sans max-w-xl">
+                      Integrate reflection diaries, action targets, predictive decision simulations, and structured knowledge hubs into a single unified dashboard.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Three column / complex grid layout */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                
+                {/* Left Side Col: Daily reflections + Decision simulations */}
+                <div className="lg:col-span-12 xl:col-span-7 space-y-6">
+                  
+                  {/* DAILY REFLECTIONS */}
+                  <div className="p-6 rounded-2xl bg-white/[0.01] border border-white/5 space-y-4 text-left">
+                    <div className="flex items-center gap-2 border-b border-white/5 pb-3">
+                      <Activity className="w-4 h-4 text-emerald-400 animate-pulse" />
+                      <h3 className="text-xs font-bold font-mono text-gray-300 uppercase tracking-widest">Daily Reflection Ledger</h3>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-mono text-gray-400 uppercase tracking-wider block">Today's Key Accomplishment</label>
+                        <input
+                          type="text"
+                          placeholder="What did you achieve today?"
+                          value={newReflectionAccomplished}
+                          onChange={(e) => setNewReflectionAccomplished(e.target.value)}
+                          className="w-full bg-[#030308]/60 border border-white/5 focus:border-emerald-500/35 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-650 focus:outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-mono text-gray-400 uppercase tracking-wider block">Insight or Learning Node</label>
+                        <input
+                          type="text"
+                          placeholder="What did you learn today?"
+                          value={newReflectionLearned}
+                          onChange={(e) => setNewReflectionLearned(e.target.value)}
+                          className="w-full bg-[#030308]/60 border border-white/5 focus:border-emerald-500/35 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-650 focus:outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-mono text-gray-400 uppercase tracking-wider block">Tomorrow's Focus Vector</label>
+                        <input
+                          type="text"
+                          placeholder="What should you improve/change tomorrow?"
+                          value={newReflectionImprove}
+                          onChange={(e) => setNewReflectionImprove(e.target.value)}
+                          className="w-full bg-[#030308]/60 border border-white/5 focus:border-emerald-500/35 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-650 focus:outline-none"
+                        />
+                      </div>
+
+                      <button
+                        onClick={handleAddNewReflection}
+                        disabled={!newReflectionAccomplished.trim() || !newReflectionLearned.trim() || !newReflectionImprove.trim()}
+                        className="w-full py-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-400/25 text-emerald-300 text-[10px] font-mono uppercase tracking-widest rounded-xl transition-all cursor-pointer disabled:opacity-40"
+                      >
+                        Register Reflection Loop
+                      </button>
+                    </div>
+
+                    {/* Reflection Logs timeline */}
+                    {(lifeosData.reflections || []).length > 0 && (
+                      <div className="space-y-3 pt-3 border-t border-white/5">
+                        <h4 className="text-[9px] font-mono text-gray-500 uppercase tracking-widest block">Reflection Archives</h4>
+                        <div className="space-y-3 max-h-64 overflow-y-auto no-scrollbar">
+                          {(lifeosData.reflections || []).map((r: any) => (
+                            <div key={r.id} className="p-3.5 rounded-xl bg-white/[0.005] border border-white/5 space-y-2 text-xs text-slate-300 leading-relaxed font-sans">
+                              <div className="flex justify-between items-center text-[9px] font-mono text-emerald-400 uppercase tracking-wider">
+                                <span>✔ logged increment</span>
+                                <span className="text-gray-500">{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : 'Today'}</span>
+                              </div>
+                              <div className="space-y-1">
+                                <p><strong className="text-white">Accomplishment:</strong> {r.accomplished}</p>
+                                <p><strong className="text-white">Insight:</strong> {r.learned}</p>
+                                <p><strong className="text-white">Focus:</strong> {r.improve}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* DECISION SIMULATOR */}
+                  <div className="p-6 rounded-2xl bg-white/[0.01] border border-white/5 space-y-4 text-left animate-fade-in">
+                    <div className="flex items-center gap-2 border-b border-white/5 pb-3">
+                      <Cpu className="w-4 h-4 text-cyan-400" />
+                      <h3 className="text-xs font-bold font-mono text-gray-300 uppercase tracking-widest">Decisional Reality Simulator</h3>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-mono text-gray-400 uppercase tracking-wider block">Decision Premise</label>
+                        <textarea
+                          placeholder="e.g., Should I relocate to SF or stay fully remote while bootstrapping my AI startup?"
+                          value={newDecisionPremise}
+                          onChange={(e) => setNewDecisionPremise(e.target.value)}
+                          rows={2.5}
+                          className="w-full bg-[#030308]/60 border border-white/5 focus:border-cyan-500/35 rounded-xl p-3 text-xs text-white placeholder-gray-650 resize-none focus:outline-none"
+                        />
+                      </div>
+
+                      <button
+                        onClick={handleSimulateDecision}
+                        disabled={simulatingDecision || !newDecisionPremise.trim()}
+                        className="w-full py-2.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-400/25 text-cyan-300 text-[10px] font-mono uppercase tracking-widest rounded-xl transition-all cursor-pointer disabled:opacity-40"
+                      >
+                        {simulatingDecision ? "Synthesizing Quantum Paths..." : "Compile Reality Simulation"}
+                      </button>
+                    </div>
+
+                    {/* Simulation results feed */}
+                    {(lifeosData.decisions || []).length > 0 && (
+                      <div className="space-y-4 pt-3 border-t border-white/5">
+                        <h4 className="text-[9px] font-mono text-gray-500 uppercase tracking-widest block">Simulation Histories</h4>
+                        <div className="space-y-4 max-h-72 overflow-y-auto no-scrollbar">
+                          {(lifeosData.decisions || []).map((d: any) => (
+                            <div key={d.id} className="p-4 rounded-xl bg-[#030508]/80 border border-cyan-500/10 space-y-3 text-xs text-slate-350">
+                              <div className="flex justify-between items-center pb-1.5 border-b border-white/[0.04]">
+                                <span className="font-mono text-[9px] text-cyan-350 uppercase truncate max-w-[200px]">Premise: {d.decision}</span>
+                                <span className="font-mono text-[8px] text-gray-500 whitespace-nowrap">{d.createdAt ? new Date(d.createdAt).toLocaleDateString() : 'Analysis Completed'}</span>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                  <span className="text-[8px] font-mono text-emerald-450 uppercase tracking-widest">Potential Benefits</span>
+                                  <ul className="list-disc pl-3 text-[10px] space-y-1 text-slate-350">
+                                    {(d.analysis?.benefits || []).map((b: string, i: number) => <li key={i}>{b}</li>)}
+                                  </ul>
+                                </div>
+                                <div className="space-y-1">
+                                  <span className="text-[8px] font-mono text-rose-455 uppercase tracking-widest">Compounding Risks</span>
+                                  <ul className="list-disc pl-3 text-[10px] space-y-1 text-slate-350">
+                                    {(d.analysis?.risks || []).map((r: string, i: number) => <li key={i}>{r}</li>)}
+                                  </ul>
+                                </div>
+                              </div>
+
+                              <div className="pt-2 border-t border-white/[0.02] space-y-2">
+                                <p className="text-[10px]"><strong className="text-white uppercase font-mono text-[8px] tracking-wider text-cyan-400 block mb-0.5">Short-Term Feedback loop (1-12 Mo)</strong> {d.analysis?.shortTerm}</p>
+                                <p className="text-[10px]"><strong className="text-white uppercase font-mono text-[8px] tracking-wider text-pink-400 block mb-0.5">Long-Term Cumulative Outcome (5-10 Yr)</strong> {d.analysis?.longTerm}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+
+                {/* Right Side Col: Goal Milestones + Knowledge Vault */}
+                <div className="lg:col-span-12 xl:col-span-5 space-y-6">
+                  
+                  {/* COGNITIVE GOAL MATRIX */}
+                  <div className="p-6 rounded-2xl bg-white/[0.01] border border-white/5 space-y-4 text-left">
+                    <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                      <div className="flex items-center gap-2">
+                        <CheckSquare className="w-4 h-4 text-purple-400 animate-pulse" style={{ animationDuration: '3s' }} />
+                        <h3 className="text-xs font-bold font-mono text-gray-300 uppercase tracking-widest">Core Goal Matrix</h3>
+                      </div>
+                      <div className="flex gap-1 bg-[#030308]/60 p-0.5 rounded-lg border border-white/5">
+                        {(['daily', 'weekly', 'long-term'] as const).map((t) => (
+                          <button
+                            key={t}
+                            onClick={() => setNewGoalTimeframe(t)}
+                            className={`px-2 py-0.5 rounded text-[8px] font-mono uppercase tracking-wider cursor-pointer whitespace-nowrap transition-all ${newGoalTimeframe === t ? 'bg-purple-500/20 text-purple-300 border border-purple-550/20' : 'text-gray-550 hover:text-white'}`}
+                          >
+                            {t.replace('-', ' ')}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder={`Push target to ${newGoalTimeframe} vector...`}
+                        value={newGoalTitle}
+                        onChange={(e) => setNewGoalTitle(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddNewGoal(); }}
+                        className="bg-[#030308]/60 border border-white/5 focus:border-purple-500/35 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-650 w-full focus:outline-none"
+                      />
+                      <button
+                        onClick={handleAddNewGoal}
+                        disabled={!newGoalTitle.trim()}
+                        className="px-4 bg-purple-500/15 hover:bg-purple-400/20 border border-purple-500/25 text-purple-300 text-xs font-mono uppercase tracking-widest rounded-xl cursor-pointer transition-all disabled:opacity-40"
+                      >
+                        [Push]
+                      </button>
+                    </div>
+
+                    {/* Goals display feed filter */}
+                    <div className="space-y-2 max-h-72 overflow-y-auto no-scrollbar">
+                      {(lifeosData.goals || []).filter(g => g.timeframe === newGoalTimeframe).length === 0 ? (
+                        <p className="text-[10px] text-gray-550 text-center py-6 font-mono max-w-xs mx-auto">No milestone coordinates synchronized on your {newGoalTimeframe} list yet.</p>
+                      ) : (
+                        (lifeosData.goals || [])
+                          .filter(g => g.timeframe === newGoalTimeframe)
+                          .map((g: any) => (
+                            <div key={g.id} className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.005] border border-white/5 hover:border-purple-500/10 hover:bg-[#060408]/30 transition-all text-xs">
+                              <div className="flex items-center gap-3 select-none flex-1">
+                                <input
+                                  type="checkbox"
+                                  checked={g.completed}
+                                  onChange={() => handleToggleGoal(g.id)}
+                                  className="w-4 h-4 rounded-md border-white/10 text-purple-500 bg-black/40 focus:ring-purple-600/30 cursor-pointer"
+                                />
+                                <span className={`text-xs ${g.completed ? 'line-through text-gray-550 italic font-medium' : 'text-gray-250 font-medium'}`}>{g.title}</span>
+                              </div>
+                              <button onClick={() => handleDeleteGoal(g.id)} className="text-[9px] font-mono text-gray-500 hover:text-rose-455 ml-2 cursor-pointer transition-colors">[Forget]</button>
+                            </div>
+                          ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* KNOWLEDGE VAULT */}
+                  <div className="p-6 rounded-2xl bg-white/[0.01] border border-white/5 space-y-4 text-left">
+                    <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                      <div className="flex items-center gap-2">
+                        <Folder className="w-4 h-4 text-emerald-400" />
+                        <h3 className="text-xs font-bold font-mono text-gray-300 uppercase tracking-widest">Asset Knowledge Vault</h3>
+                      </div>
+                      <select
+                        value={newVaultDocType}
+                        onChange={(e) => setNewVaultDocType(e.target.value as any)}
+                        className="bg-[#030308] border border-white/5 rounded-lg px-2 py-0.5 text-[9px] font-mono uppercase tracking-wider text-slate-300 focus:outline-none"
+                      >
+                        <option value="idea">Idea 💡</option>
+                        <option value="note">Note 📝</option>
+                        <option value="research">Research 🔬</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        placeholder="Document title/key phrase..."
+                        value={newVaultTitle}
+                        onChange={(e) => setNewVaultTitle(e.target.value)}
+                        className="w-full bg-[#030308]/60 border border-white/5 focus:border-emerald-500/35 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-650 focus:outline-none"
+                      />
+                      <textarea
+                        placeholder="Say what is on your mind, research quotes, scratchpads, or ideas..."
+                        value={newVaultContent}
+                        onChange={(e) => setNewVaultContent(e.target.value)}
+                        rows={3}
+                        className="w-full bg-[#030308]/60 border border-white/5 focus:border-emerald-500/35 rounded-xl p-3 text-xs text-white placeholder-gray-650 resize-none font-sans focus:outline-none"
+                      />
+
+                      <button
+                        onClick={handleAddNewVaultItem}
+                        disabled={!newVaultTitle.trim() || !newVaultContent.trim()}
+                        className="w-full py-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-400/25 text-emerald-300 text-[10px] font-mono uppercase tracking-widest rounded-xl transition-all cursor-pointer disabled:opacity-40"
+                      >
+                        Index Knowledge Coordinate
+                      </button>
+                    </div>
+
+                    {/* Vault listing */}
+                    {(lifeosData.vault || []).length > 0 && (
+                      <div className="space-y-2 pt-3 border-t border-white/5 max-h-80 overflow-y-auto no-scrollbar">
+                        <h4 className="text-[9px] font-mono text-gray-500 uppercase tracking-widest block mb-2">Vault Archives ({lifeosData.vault.length})</h4>
+                        <div className="space-y-2.5">
+                          {(lifeosData.vault || []).map((item: any) => (
+                            <div key={item.id} className="p-3 rounded-xl bg-white/[0.005] border border-white/5 space-y-1.5 relative group text-left">
+                              <div className="flex justify-between items-center">
+                                <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded tracking-widest uppercase ${item.docType === 'idea' ? 'bg-yellow-500/10 text-yellow-300' : item.docType === 'research' ? 'bg-cyan-500/10 text-cyan-300' : 'bg-purple-500/10 text-purple-300'}`}>
+                                  {item.docType}
+                                </span>
+                                <button onClick={() => handleDeleteVaultItem(item.id)} className="text-[9px] font-mono text-gray-500 hover:text-rose-455 cursor-pointer transition-colors opacity-0 group-hover:opacity-100">[forget]</button>
+                              </div>
+                              <h4 className="text-xs font-bold text-white uppercase">{item.title}</h4>
+                              <p className="text-xs text-gray-400 whitespace-pre-wrap leading-relaxed font-sans">{item.content}</p>
+                              <span className="text-[8px] text-gray-650 font-mono block text-right pt-0.5">{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'Indexed'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* ============================================================================
+              N. FUTURE SELF QUANTUM ALIGNMENT SUITE (LEGEND FEATURE)
+              ============================================================================ */}
+          {activeTab === 'futureself' && (
+            <div id="future-self-dashboard" className="absolute inset-0 overflow-y-auto pr-1 text-left space-y-6 pb-12">
+              {/* Header card with active selection */}
+              <div className="relative p-6 rounded-3xl overflow-hidden bg-gradient-to-r from-purple-950/85 to-[#0b0312]/95 border border-pink-500/10 shadow-2xl">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-pink-500/5 rounded-full blur-3xl pointer-events-none" />
+                <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div className="space-y-1">
+                    <span className="px-2.5 py-0.5 rounded-full bg-pink-500/10 border border-pink-400/20 text-pink-400 font-mono text-[9px] font-bold tracking-widest uppercase mb-1.5 inline-block animate-pulse">
+                      ⚡ FUTURE SELF CHRONO MODULE
+                    </span>
+                    <h2 className="text-xl font-bold text-white tracking-tight font-sans uppercase">
+                      Chrono Evolution Dashboard
+                    </h2>
+                    <p className="text-xs text-gray-400 font-sans max-w-xl">
+                      Synthesize complete milestone progression trajectories based on age, long-term goals, dream career projections, and core startup projects.
+                    </p>
+                  </div>
+                  {futureSelfData?.roadmap && (
+                    <button
+                      onClick={handleSimulateFutureSelf}
+                      disabled={simulatingFutureSelf}
+                      className="px-4 py-2 bg-pink-500/10 hover:bg-pink-500/20 border border-pink-400/20 text-pink-300 text-xs font-mono uppercase tracking-widest rounded-xl transition-all cursor-pointer whitespace-nowrap"
+                    >
+                      {simulatingFutureSelf ? "Re-Calibrating..." : "Recalibrate Timeline 🧪"}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {!futureSelfData?.roadmap ? (
+                /* Profile setup panel */
+                <div className="max-w-xl mx-auto p-8 rounded-3xl bg-gradient-to-b from-white/[0.015] to-[#010103]/60 border border-white/5 space-y-6">
+                  <div className="text-center space-y-2">
+                    <Compass className="w-10 h-10 text-pink-400 mx-auto animate-spin" style={{ animationDuration: '15s' }} />
+                    <h3 className="text-sm font-bold font-mono text-gray-300 uppercase tracking-widest">Setup Chrono-Core Profile</h3>
+                    <p className="text-xs text-gray-450 leading-relaxed max-w-sm mx-auto">
+                      Define the vectors that map out your trajectory so Falcon AI can synthesise a hyper-personalized roadmap.
+                    </p>
+                  </div>
+
+                  <div className="space-y-4 pt-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-mono text-gray-400 uppercase tracking-wider block">Current Age Status</label>
+                        <input
+                          type="number"
+                          placeholder="e.g. 24"
+                          value={futureSelfAge}
+                          onChange={(e) => setFutureSelfAge(e.target.value)}
+                          className="w-full bg-[#030308]/60 border border-white/5 focus:border-pink-500/35 rounded-xl px-3 py-2.5 text-xs text-white placeholder-gray-650 focus:outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-mono text-gray-400 uppercase tracking-wider block">Dream Target Career</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Quantum AI Founder"
+                          value={futureSelfDreamCareer}
+                          onChange={(e) => setFutureSelfDreamCareer(e.target.value)}
+                          className="w-full bg-[#030308]/60 border border-white/5 focus:border-pink-500/35 rounded-xl px-3 py-2.5 text-xs text-white placeholder-gray-650 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-mono text-gray-400 uppercase tracking-wider block">Core Long-Term Goal</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Bootstrap a profitable software startup doing $100k/month MRR"
+                        value={futureSelfGoal}
+                        onChange={(e) => setFutureSelfGoal(e.target.value)}
+                        className="w-full bg-[#030308]/60 border border-white/5 focus:border-pink-500/35 rounded-xl px-3 py-2.5 text-xs text-white placeholder-gray-650 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-mono text-gray-400 uppercase tracking-wider block">Priority Project Initiative</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Falcon-X OS Platform and Developer Tools"
+                        value={futureSelfProject}
+                        onChange={(e) => setFutureSelfProject(e.target.value)}
+                        className="w-full bg-[#030308]/60 border border-white/5 focus:border-pink-500/35 rounded-xl px-3 py-2.5 text-xs text-white placeholder-gray-650 focus:outline-none"
+                      />
+                    </div>
+
+                    <button
+                      onClick={handleSimulateFutureSelf}
+                      disabled={simulatingFutureSelf || !futureSelfAge.trim() || !futureSelfGoal.trim() || !futureSelfDreamCareer.trim() || !futureSelfProject.trim()}
+                      className="w-full mt-4 py-3 bg-gradient-to-r from-pink-500/20 to-purple-500/20 hover:brightness-110 border border-pink-400/30 text-pink-300 text-xs font-mono uppercase tracking-widest rounded-xl transition-all cursor-pointer disabled:opacity-40"
+                    >
+                      {simulatingFutureSelf ? "Synthesizing Timelines..." : "Compile Chrono-Blueprint Model"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Simulated Roadmap details */
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  
+                  {/* Left Column: Letter from Future Self + Skill & Learning Maps */}
+                  <div className="lg:col-span-7 space-y-6">
+                    
+                    {/* Inspiring future letter card */}
+                    {futureSelfData.roadmap.futureSelfLetter && (
+                      <div className="p-6 rounded-2xl bg-gradient-to-br from-indigo-950/15 to-[#050109]/30 border border-indigo-400/10 space-y-4">
+                        <div className="flex items-center gap-2.5">
+                          <Compass className="w-4 h-4 text-pink-400 animate-spin" style={{ animationDuration: '10s' }} />
+                          <h3 className="text-xs font-bold font-mono text-gray-300 uppercase tracking-widest">Message from Future Self (+5 Years)</h3>
+                        </div>
+                        <p className="text-xs text-gray-400 italic leading-relaxed font-sans font-medium whitespace-pre-wrap">
+                          "{futureSelfData.roadmap.futureSelfLetter}"
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Skill Matrix Map */}
+                    {futureSelfData.roadmap.skillMap && (
+                      <div className="p-6 rounded-2xl bg-white/[0.010] border border-white/5 space-y-4">
+                        <div className="flex items-center gap-2">
+                          <Cpu className="w-4 h-4 text-pink-400" />
+                          <h3 className="text-xs font-bold font-mono text-gray-300 uppercase tracking-widest">Mastery Skill Projections</h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {futureSelfData.roadmap.skillMap.map((s: any, idx: number) => (
+                            <div key={idx} className="p-4 rounded-xl bg-white/[0.005] border border-white/5 space-y-1.5 hover:bg-[#07010e]/25 hover:border-pink-550/15 transition-all">
+                              <div className="flex justify-between items-center">
+                                <h4 className="text-xs font-bold text-white uppercase">{s.skill}</h4>
+                                <span className="text-[8px] font-mono px-2 py-0.5 rounded-full bg-pink-500/15 text-pink-300">{s.masteryTime}</span>
+                              </div>
+                              <p className="text-[11px] text-gray-400 leading-relaxed font-sans">{s.purpose}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Technical Learning Channels */}
+                    {futureSelfData.roadmap.learningPlan && (
+                      <div className="p-6 rounded-2xl bg-white/[0.010] border border-white/5 space-y-4">
+                        <div className="flex items-center gap-2">
+                          <BookOpen className="w-4 h-4 text-pink-400" />
+                          <h3 className="text-xs font-bold font-mono text-gray-300 uppercase tracking-widest">Recommended Learning Blueprints</h3>
+                        </div>
+                        <div className="space-y-3.5">
+                          {futureSelfData.roadmap.learningPlan.map((l: any, idx: number) => (
+                            <div key={idx} className="p-4 rounded-xl bg-white/[0.005] border border-white/5 space-y-1 text-left">
+                              <h4 className="text-xs font-bold font-medium text-white">{l.topic}</h4>
+                              <p className="text-[11px] text-gray-400 leading-relaxed font-sans">
+                                <strong className="text-pink-300 font-mono text-[9px] uppercase tracking-wider block mt-1">Recommended vectors:</strong> {l.materials}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+
+                  {/* Right Column: 12-Week Milestones Checklist & Progress bar */}
+                  <div className="lg:col-span-5 space-y-6">
+                    
+                    {/* Progression Checklist */}
+                    <div className="p-6 rounded-2xl bg-white/[0.010] border border-white/5 space-y-5 text-left">
+                      <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                        <div className="flex items-center gap-2">
+                          <CheckSquare className="w-4 h-4 text-pink-400 animate-pulse" />
+                          <h3 className="text-xs font-bold font-mono text-gray-300 uppercase tracking-widest text-left">12-Week Evolution Tracker</h3>
+                        </div>
+                        {((futureSelfData.roadmap.weeklyMilestones || []).filter((m: any) => m.completed).length === 12) && (
+                          <span className="text-[8px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 tracking-widest font-black animate-pulse">OPTIMALLY ALIGNED</span>
+                        )}
+                      </div>
+
+                      {/* Progress bar tracking */}
+                      {(() => {
+                        const total = (futureSelfData.roadmap.weeklyMilestones || []).length || 12;
+                        const completedCount = (futureSelfData.roadmap.weeklyMilestones || []).filter((m: any) => m.completed).length;
+                        const percent = Math.round((completedCount / total) * 100);
+                        return (
+                          <div className="p-4 rounded-xl bg-black/40 border border-white/5 space-y-2">
+                            <div className="flex justify-between items-center text-[10px] font-mono">
+                              <span className="text-gray-450 uppercase">TRAJECTORY SYNC RATE</span>
+                              <span className="text-pink-300 font-black">{percent}%</span>
+                            </div>
+                            <div className="h-2 w-full bg-[#030308] rounded-full overflow-hidden p-0.5 border border-white/5">
+                              <div className="h-full bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded-full transition-all duration-500" style={{ width: `${percent}%` }} />
+                            </div>
+                            <div className="flex justify-between items-center text-[8px] font-mono text-gray-500">
+                              <span>CURRENT: Level {Math.floor(completedCount / 3) + 1} Evolution</span>
+                              <span>{completedCount} / {total} TARGETS</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Weekly checklist timeline of checkboxes */}
+                      <div className="space-y-3 max-h-[420px] overflow-y-auto no-scrollbar pr-1">
+                        {(futureSelfData.roadmap.weeklyMilestones || []).map((m: any) => (
+                          <div key={m.id} className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.005] border border-white/5 hover:border-pink-550/10 hover:bg-[#07010e]/20 transition-all text-xs">
+                            <input
+                              type="checkbox"
+                              checked={m.completed}
+                              onChange={() => handleToggleFutureSelfMilestone(m.id)}
+                              className="w-4 h-4 mt-0.5 rounded-md border-white/10 text-pink-500 bg-black/40 focus:ring-pink-600/30 cursor-pointer"
+                            />
+                            <div className="space-y-0.5">
+                              <span className="font-mono font-bold text-[9px] uppercase tracking-wider text-pink-400 block">WEEK {m.week} VECTOR</span>
+                              <p className={`text-xs ${m.completed ? 'line-through text-gray-550 italic' : 'text-gray-300'}`}>{m.description}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Timeline Adaptation Logs */}
+                    {futureSelfData.adaptationLogs && futureSelfData.adaptationLogs.length > 0 && (
+                      <div className="p-6 rounded-2xl bg-white/[0.010] border border-white/5 space-y-4">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-pink-400" />
+                          <h3 className="text-xs font-bold font-mono text-gray-300 uppercase tracking-widest">Chrono Adaptation Logs</h3>
+                        </div>
+                        <div className="space-y-2.5 max-h-48 overflow-y-auto no-scrollbar">
+                          {futureSelfData.adaptationLogs.map((log: any, idx: number) => (
+                            <div key={idx} className="flex items-start gap-2.5 text-[10px] text-gray-450 font-sans border-b border-white/[0.03] pb-2">
+                              <span className="text-pink-450 text-[9px] font-mono mt-0.5">[●]</span>
+                              <div className="space-y-0.5 flex-1">
+                                <p>{log.action}</p>
+                                <span className="text-[8px] text-gray-650 font-mono block">{new Date(log.timestamp).toLocaleTimeString()} - {new Date(log.timestamp).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+
+                </div>
+              )}
             </div>
           )}
 

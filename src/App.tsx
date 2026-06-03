@@ -76,7 +76,7 @@ export default function App() {
               FALCON AI
             </h1>
             <p className="text-[10px] text-gray-400 font-mono tracking-widest uppercase select-none">
-              Designed by Ojas Soni
+              Developed by Falcon AI Team
             </p>
           </div>
 
