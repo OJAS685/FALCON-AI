@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User as UserType } from '../types';
+import Markdown from 'react-markdown';
 
 interface TraderModeViewProps {
   user: UserType;
@@ -579,8 +580,8 @@ export default function TraderModeView({ user }: TraderModeViewProps) {
                       <span className="text-[8px] font-mono text-gray-500">SYSTEM COGNITION DIRECTIVE</span>
                     </div>
                     
-                    <div className="text-slate-200 mt-2 whitespace-pre-wrap leading-relaxed">
-                      {analysisResult}
+                    <div className="markdown-body select-text text-slate-200 mt-2 text-xs leading-relaxed">
+                      <Markdown>{analysisResult}</Markdown>
                     </div>
                   </div>
                 ) : (
@@ -1473,8 +1474,8 @@ export default function TraderModeView({ user }: TraderModeViewProps) {
                       <span className="text-[8px] font-mono text-gray-500">SYSTEM COGNITION ON EXECUTION</span>
                     </div>
                     
-                    <div className="whitespace-pre-wrap leading-relaxed mt-1">
-                      {aiReviewOutput}
+                    <div className="markdown-body select-text text-slate-200 mt-2 text-[11.5px] leading-relaxed">
+                      <Markdown>{aiReviewOutput}</Markdown>
                     </div>
                   </div>
                 ) : (

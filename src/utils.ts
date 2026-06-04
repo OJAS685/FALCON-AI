@@ -383,7 +383,7 @@ export async function sendChatMessage(
   }
 }
 
-export async function generateAIImage(prompt: string, aspectRatio: string) {
+export async function generateAIImage(prompt: string, aspectRatio: string, stylePreset?: string) {
   try {
     const token = typeof window !== 'undefined' ? localStorage.getItem('falcon_token') : null;
     const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -394,7 +394,7 @@ export async function generateAIImage(prompt: string, aspectRatio: string) {
     const res = await fetch("/api/ai/generate-image", {
       method: "POST",
       headers,
-      body: JSON.stringify({ prompt, aspectRatio })
+      body: JSON.stringify({ prompt, aspectRatio, stylePreset })
     });
     if (res.status === 401) {
       if (typeof window !== 'undefined') {
@@ -411,10 +411,8 @@ export async function generateAIImage(prompt: string, aspectRatio: string) {
   } catch (err: any) {
     console.error("AI image compilation error:", err);
     return {
-      success: true,
-      url: "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?q=80&w=600&auto=format&fit=crop",
-      prompt,
-      model: "Falcon AI Retro-Prism System"
+      success: false,
+      error: err.message || "Failed to process image generation request."
     };
   }
 }
@@ -522,22 +520,9 @@ export async function editAIImage(
     }
   } catch (err: any) {
     console.error("AI image editing error:", err);
-    const randomSeed = Math.floor(Math.random() * 9999999);
-    const mockActionPrompts: Record<string, string> = {
-      background: `A high-definition image of the original subject placed in a stunning room background. Prompt: ${prompt}. Preset: ${stylePreset}`,
-      remove: `A high-definition professional photo of the subject with clean empty backgrounds. Prompt: ${prompt}. Preset: ${stylePreset}`,
-      cartoon: `A clean vector Pixar Disney styled 3D mascot modeling scene. Style: ${stylePreset}`,
-      anime: `A gorgeous hand-painted Makoto Shinkai style watercolor anime illustration. Style: ${stylePreset}`,
-      outfit: `A cinematic professional fashion portrait. Style: ${stylePreset}`,
-      lighting: `A highly cinematic photo with moody light prisms and epic shadows. Style: ${stylePreset}`
-    };
-    const finalPrompt = mockActionPrompts[action] || `A stunning realistic edited version of the subject: ${prompt}`;
-    const generatedUrl = `https://image.pollinations.ai/p/${encodeURIComponent(finalPrompt)}?width=768&height=768&seed=${randomSeed}&model=flux&nologo=true`;
     return {
-      success: true,
-      url: `/api/ai/image-proxy?url=${encodeURIComponent(generatedUrl)}`,
-      prompt: finalPrompt,
-      model: "Falcon-X Creative Editing Core (Fallback)"
+      success: false,
+      error: err.message || "Failed to process image edit request."
     };
   }
 }

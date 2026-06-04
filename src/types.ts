@@ -15,6 +15,7 @@ export interface User {
   projects?: Project[];
   studentData?: StudentData;
   creatorDrafts?: CreatorStudioDraft[];
+  savedLetters?: SavedLetter[];
 }
 
 export interface Memory {
@@ -153,3 +154,28 @@ export interface VoiceState {
   status: 'idle' | 'listening' | 'thinking' | 'speaking';
   text: string;
 }
+
+export interface SavedLetter {
+  id: string;
+  type: string; // school_leave, resignation, complain, etc.
+  inputs: {
+    name: string;
+    receiver: string;
+    entityName: string; // School/Company Name
+    reason: string;
+    date: string;
+    duration: string;
+    additional?: string;
+  };
+  outputs: {
+    formal: string;
+    professional: string;
+    short: string;
+    detailed: string;
+  };
+  language: 'en' | 'hi' | 'hinglish';
+  templateType: 'student' | 'teacher' | 'employee' | 'business';
+  aiSuggestions: string[];
+  createdAt: string;
+}
+

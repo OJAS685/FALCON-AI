@@ -86,6 +86,7 @@ interface DBUser {
   creatorDrafts?: any[];
   lifeosData?: any;
   futureSelfData?: any;
+  savedLetters?: any[];
 }
 
 const CHATS_FILE = path.join(process.cwd(), "chats_database.json");
@@ -970,6 +971,194 @@ app.post("/api/user/creator-studio", authenticateToken as any, (req: AuthRequest
   saveUsers(usersDB);
 
   return res.json({ success: true, draft: newDraft, message: "Creative draft cataloged in Creator Studio." });
+});
+
+// ============================================================================
+// SMART APPLICATION & LETTER MAKER ENDPOINTS
+// ============================================================================
+
+// GET all user saved letters
+app.get("/api/user/saved-letters", authenticateToken as any, (req: AuthRequest, res) => {
+  const user = req.user!;
+  const savedLetters = user.savedLetters || [];
+  return res.json({ success: true, savedLetters });
+});
+
+// POST save a letter to user history
+app.post("/api/user/saved-letters", authenticateToken as any, (req: AuthRequest, res) => {
+  const user = req.user!;
+  const { type, inputs, outputs, language, templateType, aiSuggestions } = req.body;
+
+  if (!type || !inputs || !outputs) {
+    return res.status(400).json({ error: "Letter properties (type, inputs, outputs) are required to save." });
+  }
+
+  const newLetter = {
+    id: "let_" + Math.random().toString(36).substr(2, 9),
+    type,
+    inputs,
+    outputs,
+    language: language || "en",
+    templateType: templateType || "student",
+    aiSuggestions: aiSuggestions || [],
+    createdAt: new Date().toISOString()
+  };
+
+  if (!user.savedLetters) {
+    user.savedLetters = [];
+  }
+  user.savedLetters.push(newLetter);
+  saveUsers(usersDB);
+
+  return res.json({ success: true, letter: newLetter, savedLetters: user.savedLetters, message: "Application archived inside history log." });
+});
+
+// DELETE remove a letter from user history
+app.delete("/api/user/saved-letters/:id", authenticateToken as any, (req: AuthRequest, res) => {
+  const user = req.user!;
+  const letterId = req.params.id;
+
+  if (!user.savedLetters) {
+    user.savedLetters = [];
+  }
+
+  const initialCount = user.savedLetters.length;
+  user.savedLetters = user.savedLetters.filter(l => l.id !== letterId);
+
+  if (user.savedLetters.length === initialCount) {
+    return res.status(404).json({ error: "Letter record not found." });
+  }
+
+  saveUsers(usersDB);
+  return res.json({ success: true, savedLetters: user.savedLetters, message: "Application purged from records." });
+});
+
+// POST generate letter variants with Gemini AI (with smart offline fallbacks)
+app.post("/api/ai/letters/generate", authenticateToken as any, async (req: AuthRequest, res) => {
+  const { type, name, receiver, entityName, reason, date, duration, additional, language, templateType } = req.body;
+
+  if (!type || !name || !receiver || !entityName || !reason) {
+    return res.status(400).json({ error: "Essential letter parameters are missing." });
+  }
+
+  const ai = getGeminiClient();
+  if (ai) {
+    try {
+      const prompt = `You are an elite professional scribe and grammar expert. Generate an application/letter for: "${type}".
+      Inputs provided:
+      - Name: "${name}"
+      - Receiver: "${receiver}"
+      - School/Company Name: "${entityName}"
+      - Reason: "${reason}"
+      - Date: "${date || 'Current date'}"
+      - Duration: "${duration || 'N/A'}"
+      - Additional Details: "${additional || 'None'}"
+      
+      Language requested: "${language}" (options are 'en' for English, 'hi' for Hindi in Devanagari script, or 'hinglish' for Hindi written in Roman phonetic script).
+      Template role/type: "${templateType}" (options are 'student', 'teacher', 'employee', or 'business').
+      
+      Generate four (4) distinct versions of this application:
+      1. formal: Traditional formal, strictly following established block spacing and formal conventions.
+      2. professional: Standard professional business style (well-suited for emails or modern workplaces).
+      3. short: Brief, crisp, and direct to the point.
+      4. detailed: Comprehensive, providing full context, extra spacing, and a paragraph layout.
+      
+      Ensure you output proper subject lines, standard correct salutations, perfect spelling/grammar, and a highly polished professional tone matching the specified audience.
+      
+      Also, provide three (3) specific, structured, realistic "AI Suggestions" (as an array of strings in JSON) for how the user can improve their justification, make it sound more professional, or what documents they should attach in their actual submission.
+      
+      Respond STRICTLY with a valid JSON matching this schema:
+      {
+        "formal": "The full formal version...",
+        "professional": "The full professional version...",
+        "short": "The full short version...",
+        "detailed": "The full detailed version...",
+        "aiSuggestions": ["Suggestion 1", "Suggestion 2", "Suggestion 3"]
+      }
+      `;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json"
+        }
+      });
+
+      const rawText = response.text || "";
+      const parsed = JSON.parse(rawText);
+      return res.json({ success: true, ...parsed });
+    } catch (gcErr: any) {
+      console.log("ℹ️ Falcon Letter generator: applying intelligent script templates fallback...", gcErr?.message || gcErr);
+    }
+  }
+
+  // Standalone Sandbox Fallback simulation
+  const langUpper = (language || 'en').toLowerCase();
+  
+  // Custom templates mapped based on language, templateType, and general details
+  let greeting = "Dear " + receiver + ",";
+  let sub = `Subject: Application for ${type}`;
+  let closing = "Sincerely,\n" + name;
+
+  if (langUpper === 'hi') {
+    greeting = `सेवा में,\nश्रीमान ${receiver},\n${entityName}`;
+    sub = `विषय: ${type} हेतु आवेदन पत्र`;
+    closing = `आपका विश्वासी,\n${name}`;
+  } else if (langUpper === 'hinglish') {
+    greeting = `Sewa me,\nShri maan ${receiver},\n${entityName}`;
+    sub = `Subject: ${type} ke liye aavedan patra`;
+    closing = `Aapka vishwasi,\n${name}`;
+  }
+
+  // Standard template builders depending on language
+  let formalText = "";
+  let profText = "";
+  let shortText = "";
+  let detailedText = "";
+  let suggestions: string[] = [];
+
+  if (langUpper === 'hi') {
+    formalText = `${greeting}\n\n${sub}\n\nमहोदय,\n\nसविनय निवेदन है कि मेरा नाम ${name} है। मैं ${entityName} में कार्यरत हूँ। यह पत्र मैं ${reason} के संबंध में लिख रहा हूँ। कृपया इस विषय को ${date} से लागू करने की कृपा करें, जो कि ${duration} अवधि के लिए रहेगा।\n\nअतः आपसे नम्र निवेदन है कि मेरे इस आवेदन को स्वीकार करने की कृपा करें। इसके लिए मैं सदैव आपका आभारी रहूँगा।\n\nधन्यवाद।\n\n${closing}`;
+    profText = `${greeting}\n\n${sub}\n\nनमस्ते ${receiver},\n\nमैं यह आवेदन पत्र ${entityName} के संज्ञान में लाने के लिए लिख रहा हूँ। मुझे ${reason} के कारण ${date} से शुरू होने वाले ${duration} के लिए अवकाश की आवश्यकता है।\n\nइस अवधि के दौरान मेरा कार्यभार मेरे सहयोगियों द्वारा संभाला जाएगा। आशा है आप इसे स्वीकृत करेंगे।\n\nसादर,\n${name}`;
+    shortText = `${greeting}\n\n${sub}\n\nप्रिय ${receiver},\n\nकृपया ${reason} के कारण ${date} से ${duration} के लिए मेरा आवेदन पत्र स्वीकार करें।\n\nधन्यवाद,\n${name}`;
+    detailedText = `${greeting}\n\n${sub}\n\nमहोदय,\n\nमैं ${name}, ${entityName} से, इस पत्र के माध्यम से सूचित करना चाहता हूँ कि मुझे ${reason} के कारण ${date} से अवकाश की अत्यंत आवश्यकता है। यह अवकाश ${duration} की संक्षिप्त अवधि के लिए होगा।\n\nमेरे जाने से पहले मैंने अपने सभी आवश्यक कार्यों को पूर्ण कर लिया है ताकि किसी कार्य में व्यवधान न उत्पन्न हो। मेरी अनुपस्थिति में कोई भी आपातकालीन कार्य होने पर आप मुझसे मेल या फोन पर संपर्क कर सकते हैं। अतिरिक्त विवरण: ${additional || 'कुछ नहीं'}\n\nसहानुभूतिपूर्वक विचार करने के लिए धन्यवाद।\n\nभवदीय,\n${name}`;
+    suggestions = [
+      "आवेदन में अवकाश की तिथि अत्यंत स्पष्ट रूप से अंकित करें।",
+      "यदि बीमारी के संबंध में हो, तो डॉक्टर का पर्चा सहपत्र के रूप में संलग्न करें।",
+      "अवकाश के दौरान अपने विकल्प या संपर्क सूत्र का अवश्य उल्लेख करें।"
+    ];
+  } else if (langUpper === 'hinglish') {
+    formalText = `${greeting}\n\n${sub}\n\nRespected ${receiver},\n\nSaviney nivedan hai ki mera naam ${name} hai aur main ${entityName} me hoon. Main yeh letter complex reason "${reason}" ke chalte likh raha hoon. Kripya isko ${date} se start karke ${duration} time-frame ke liye sweekar karein.\n\nAsha hai aap mere is application ko approve karenge. Main iske liye aapka sadaiv aabhari rahunga.\n\nThanking You.\n\n${closing}`;
+    profText = `${greeting}\n\n${sub}\n\nHello ${receiver},\n\nMain yeh application ${reason} ke sanbadh me likh raha hoon. Mujhe ${date} se ${duration} ke liye leaves ki zaroorat hai. Saara backup team work arrange kar diya gaya hai.\n\nRegard,\n${name}`;
+    shortText = `${greeting}\n\n${sub}\n\nHi ${receiver},\n\nReason "${reason}" ke chalte ${date} se ${duration} ke liye aavedan swikar karein.\n\nThanks,\n${name}`;
+    detailedText = `${greeting}\n\n${sub}\n\nDear ${receiver},\n\nMera nivedan hai ki main ${name}, ${entityName} ki taraf se, urgent leave apply karna chahta hoon. Reason "${reason}" hai aur iski dates ${date} se start hongi (duration: ${duration}).\n\nMaine apne back-office colleagues ko handover complete kar diya hai. Additional notes: ${additional || 'N/A'}.\n\nThank you,\n${name}`;
+    suggestions = [
+      "Dates ko final aur exact formats me verify kar ke hi forward karein.",
+      "Professional flow maintain karne ke liye receiver ka poora designation use karein.",
+      "Emergency contact handle karne ke liye phone number ka note additional info me add karein."
+    ];
+  } else {
+    // English
+    formalText = `To,\nThe ${receiver},\n${entityName}\n\n${sub}\n\nRespected Sir/Madam,\n\nI am writing to formally request an application for "${type}" due to the following reason: ${reason}. This relates to the period starting on ${date} and will be effective for a duration of ${duration}.\n\nI have ensured that all my pending tasks are updated, and I request you to kindly sanction this application. I shall be highly obliged for your kind consideration.\n\nThanking you,\n\n${closing}`;
+    profText = `${greeting}\n\n${sub}\n\nI am writing to request a "${type}" starting on ${date} for ${duration}. The primary reason for this request is ${reason}.\n\nI have delegated my core focus areas to ensure operations continue smoothly in my absence. I will also be reachable via email in case of urgent issues.\n\nThank you for your time and understanding.\n\nRegards,\n${name}`;
+    shortText = `${greeting}\n\n${sub}\n\nPlease approve my request for ${type} starting ${date} for ${duration} due to ${reason}.\n\nBest,\n${name}`;
+    detailedText = `To,\nThe ${receiver},\n${entityName}\n\n${sub}\n\nDear ${receiver},\n\nMy name is ${name}, and I am writing on behalf of my position at ${entityName} to submit this formal request for ${type}.\n\nI will require this starting from ${date}, covering a total length of ${duration}. This is critical due to: ${reason}.\n\nI have structured a comprehensive transition plan for my tasks, and my teammates have been fully briefed. Additional notes: ${additional || 'None'}. I will monitor progress remotely whenever possible.\n\nThank you for reviewing this application. I look forward to your positive approval.\n\nSincerely,\n${name}`;
+    suggestions = [
+      "Be sure to attach relevant supporting documents (doctor's note, invitation letter, etc.) if applicable.",
+      "Ensure the starting date gives your school/office sufficient advanced notice (preferably 3-5 days in advance).",
+      "Explicitly mention your availability levels (e.g. 'Fully reachable helper' vs 'Complete offline blackout') in additional notes."
+    ];
+  }
+
+  return res.json({
+    success: true,
+    formal: formalText,
+    professional: profText,
+    short: shortText,
+    detailed: detailedText,
+    aiSuggestions: suggestions
+  });
 });
 
 // ============================================================================
@@ -2192,7 +2381,7 @@ ${contextHistory}
 
 // Image Generation Endpoint
 app.post("/api/ai/generate-image", authenticateToken as any, async (req: AuthRequest, res) => {
-  const { prompt, aspectRatio } = req.body;
+  const { prompt, aspectRatio, stylePreset } = req.body;
   const user = req.user!;
   const currentGens = user.imageGenCount || 0;
   const maxAllowed = user.maxImageGens || 3;
@@ -2207,6 +2396,7 @@ app.post("/api/ai/generate-image", authenticateToken as any, async (req: AuthReq
   }
 
   const resRatio = aspectRatio || "1:1";
+  const activeStyle = stylePreset || "realistic";
   let w = 1024;
   let h = 1024;
   
@@ -2237,8 +2427,23 @@ app.post("/api/ai/generate-image", authenticateToken as any, async (req: AuthReq
       const response = await ai.models.generateContent({
         model: "gemini-3.5-flash",
         contents: `You are an elite, professional visual design prompt optimization engine.
-Analyze the user's high-level imagery prompt: "${prompt}".
-Optimise and expand this into a highly detailed, extremely photorealistic, aesthetic landscape/portrait description with pristine lens focus, gorgeous volumetric light depth, authentic fine textures, and specific cinematic composition cues. Keep it elegant and clean, written in English. Do NOT add any preamble or conversational fillers, simply return the finalized expanded prompt.`,
+Analyze the user's high-level imagery prompt: "${prompt}", which is intended for the style/medium preset: "${activeStyle}".
+Optimise and expand this into a highly detailed, extremely specific expanded prompt that contains professional details:
+1. Subject: Character detail, apparel, facial posture, structure.
+2. Background: Environment elements, atmosphere, background items, textures.
+3. Lighting: Volumetric, directional, ambient coloring.
+4. Camera/Composition: Angle, focal depth, symmetry, lens specs.
+5. Specific style compliance:
+   - If "realistic" or "hyperreal": generate photo-like terms such as "85mm lens, f/1.8, razor-sharp focus, highly texturized skin pores, specular eye highlights".
+   - If "anime" or "ghibli": use "hand-drawn watercolor, clean outlines, sun-dappled clouds, Makoto Shinkai cell style".
+   - If "cartoon" or "pixar": use "raytraced 3D clay model, warm peach shaders, glowing expressive round eyes, Octane render".
+   - If "cyberpunk": use "rainy asphalt, neon pink and turquoise glowing signs, dark humid futuristic alleys".
+   - If "logo": use "minimalist flat vector graphics, high contrast, clean geometry lines, isolated on a solid white background".
+   - If "poster": use "modern retro layout paper textures, centered design composition, screen-printed style".
+   - If "thumbnail": use "extreme high impact action colors, saturated focus, cinematic foreground zoom, vibrant outline glow".
+   - If "mockup": use "aesthetic minimalist studio shelf setup, elegant clean branding package display, subtle ambient lighting".
+Ensure you automatically enrich weak prompts with majestic details while preserving the core idea exactly.
+Keep it elegant, in English. Do NOT add preamble or markdown backticks, simply return the optimized expanded prompt text.`,
       });
       if (response.text) {
         finalPrompt = response.text.trim();
@@ -2250,10 +2455,10 @@ Optimise and expand this into a highly detailed, extremely photorealistic, aesth
   } else {
     // Intelligent offline prompt enricher
     const additionsList = [
-      "award winning, masterpiece photography, highly detailed 8k cinematic depth of field",
-      "ultra photorealistic texture rendering, dramatic shadows, raytraced ambient light, rich details",
+      "award winning, masterpiece design, highly detailed 8k cinematic depth of field",
+      "ultra high-fidelity texture rendering, dramatic shadows, raytraced ambient light, rich details",
       "extremely polished, pristine colors, fine lighting design, highly curated art direction",
-      "shot on professional 35mm lens, sharp micro-detail textures, breathtaking atmosphere"
+      "shot on professional lens, sharp micro-detail textures, breathtaking atmosphere"
     ];
     const selectedAddition = additionsList[seed % additionsList.length];
     finalPrompt = `${prompt}. ${selectedAddition}`;
@@ -2285,14 +2490,8 @@ Optimise and expand this into a highly detailed, extremely photorealistic, aesth
 
   } catch (error: any) {
     console.error("❌ High-performance image generation error:", error);
-    const randomSeed = Math.floor(Math.random() * 50000);
-    const fallbackUrl = `https://image.pollinations.ai/p/futuristic-neon-aurora-abstract?width=1024&height=1024&seed=${randomSeed}&model=flux&nologo=true`;
-    return res.json({
-      success: true,
-      url: `/api/ai/image-proxy?url=${encodeURIComponent(fallbackUrl)}`,
-      prompt,
-      model: "Flux.1 Fallback Pipeline",
-      aspectRatio: resRatio
+    return res.status(500).json({ 
+      error: "We encountered an issue during image compilation. Please verify the prompt detail and try again." 
     });
   }
 });
